@@ -27,11 +27,13 @@ def main(args: argparse.Namespace):
     print("--------------- Data Split ---------------")
     train, test, eval = train_test_eval_split(train_data, test_data)
     print("--------------- Model Load   ---------------")
-    # mySVD = _SVD(train, test, eval)
-    myNMF = _NMF(train, test, eval)
+    if args.model == "SVD":
+        model = _SVD(train, test, eval)
+    elif args.model == "NMF":
+        model = _NMF(train, test, eval)
     print("--------------- Predict & Evaluate ---------------")
     # pred, score = mySVD.evaluate()
-    pred, score = myNMF.evaluate()
+    pred, score = model.evaluate()
     print("--------------- Save Predict ---------------")
     filename = setting.get_submit_filename(args, score)
     setting.save_predict(filename=filename, predict=pred)
