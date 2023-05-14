@@ -6,9 +6,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--seed", default=42, type=int, help="랜덤 시드를 지정합니다.")
-    parser.add_argument(
-        "--use_cuda_if_available", default=True, type=bool, help="GPU 사용 여부를 지정합니다."
-    )
 
     parser.add_argument(
         "--data_dir", default="/opt/ml/input/data", type=str, help="데이터 경로를 지정합니다."
