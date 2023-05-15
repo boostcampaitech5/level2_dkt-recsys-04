@@ -94,6 +94,7 @@ def main(args: argparse.Namespace):
         args, model.model.best_score_["validation"]["AUC"]
     )
     setting.save_predict(filename=filename, predict=total_preds)
+    setting.save_config(args, model.model.best_score_["validation"]["AUC"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 import os
+import json
 import random
 import time
+import argparse
 import pandas as pd
 import numpy as np
 
@@ -90,6 +92,33 @@ class Setting:
             f"{args.output_dir}{self.save_time}_{auc_score:.5f}_catboost.csv"
         )
         return filename
+
+    def save_config(
+        self,
+        args: argparse.Namespace,
+        auc_score: float,
+        save_path: str = "./configs/",
+    ) -> str:
+        """_summary_
+
+        Argparse의 내용들을 저장하기 위한 Config 파일 저장
+
+        Args:
+            args (argparse.Namespace): Argment : hyperparameter
+            auc_score (float): AUC score
+            save_path (str, optional): 저장 경로. Defaults to "./configs/".
+
+        Returns:
+            str: 저장된 경로 반환
+        """
+        self.make_dir(save_path)
+        file_path = os.path.join(
+            save_path, f"{self.save_time}_{auc_score:.5f}_config.json"
+        )
+        args_dict = vars(args)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(args_dict, f, indent="\t")
+        return file_path
 
 
 logging_conf = {  # only used when 'user_wandb==False'

@@ -14,7 +14,7 @@ class CatBoost:
             self.model = CatBoostClassifier(
                 iterations=args.num_iterations,
                 learning_rate=args.lr,
-                depth=6,
+                depth=args.depth,
                 loss_function="Logloss",
                 eval_metric="AUC",
                 random_seed=args.seed,
@@ -25,7 +25,7 @@ class CatBoost:
             self.model = CatBoostClassifier(
                 iterations=args.num_iterations,
                 learning_rate=args.lr,
-                depth=6,
+                depth=args.depth,
                 loss_function="Logloss",
                 eval_metric="AUC",
                 random_seed=args.seed,
