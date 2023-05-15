@@ -423,6 +423,7 @@ $RECYCLE.BIN/
 /code/dkt
 /code/lightgcn
 /eda
+/code/catboost/configs
 
 /data
 .empty
