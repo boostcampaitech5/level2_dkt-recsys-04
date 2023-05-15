@@ -9,27 +9,13 @@ from sklearn.metrics import accuracy_score
 
 
 class CatBoost:
-    def __init__(self, args: argparse.Namespace, cat_features: list) -> None:
-        if args.use_cuda_if_available:
-            self.model = CatBoostClassifier(
-                iterations=args.num_iterations,
-                learning_rate=args.lr,
-                depth=args.depth,
-                loss_function="Logloss",
-                eval_metric="AUC",
-                random_seed=args.seed,
-                task_type="GPU",
-                devices="0",
-            )
-        else:
-            self.model = CatBoostClassifier(
-                iterations=args.num_iterations,
-                learning_rate=args.lr,
-                depth=args.depth,
-                loss_function="Logloss",
-                eval_metric="AUC",
-                random_seed=args.seed,
-            )
+    def __init__(
+        self,
+        args: argparse.Namespace,
+        cat_features: list,
+        model_path: str = None,
+    ) -> None:
+        self.model = self.load_model(args=args, model_path=model_path)
         self.cat_features = cat_features
 
     def train(
@@ -40,7 +26,7 @@ class CatBoost:
         y_valid: pd.Series,
     ) -> None:
         """_summary_
-        CatBoost Train
+        CatBoost Train 함수
         Args:
             train (pd.DataFrame): train dataset
             y_train (pd.Series): train label
@@ -56,6 +42,48 @@ class CatBoost:
             early_stopping_rounds=100,
             verbose_eval=100,
         )
+
+    def load_model(
+        self,
+        args: argparse.Namespace,
+        model_path: str,
+    ) -> CatBoostClassifier:
+        """_summary_
+        Train시에는 Config에 맞는 초기 모델을 반환하며
+        Inference시에는 모델의 가중치(cbm) 파일 경로를 읽어 기존 모델을 Load하여 반환한다.
+
+        Args:
+            args (argparse.Namespace): Config
+            model_path (str): Model을 Load하여 사용할 때 사용하는 변수로 기존 모델의 경로를 나타낸다.
+
+        Returns:
+            CatBoostClassifier: Model을 반환한다.
+        """
+        if model_path:
+            self.model = CatBoostClassifier()
+            self.model.load_model(model_path, format="cbm")
+        else:
+            if args.use_cuda_if_available:
+                self.model = CatBoostClassifier(
+                    iterations=args.num_iterations,
+                    learning_rate=args.lr,
+                    depth=args.depth,
+                    loss_function="Logloss",
+                    eval_metric="AUC",
+                    random_seed=args.seed,
+                    task_type="GPU",
+                    devices="0",
+                )
+            else:
+                self.model = CatBoostClassifier(
+                    iterations=args.num_iterations,
+                    learning_rate=args.lr,
+                    depth=args.depth,
+                    loss_function="Logloss",
+                    eval_metric="AUC",
+                    random_seed=args.seed,
+                )
+        return self.model
 
     def save_model(
         self,

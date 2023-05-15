@@ -14,7 +14,7 @@ from catboost_util.datasets import (
     custom_label_split,
     FEATS,
 )
-from catboost_util.args import parse_args
+from catboost_util.args import train_parse_args
 
 setting = Setting()
 logger = get_logger(logging_conf)
@@ -98,18 +98,19 @@ def main(args: argparse.Namespace):
 
     ######################## SAVE MODEL
     print("\n--------------- Save Model   ---------------")
-    model.save_model(
-        filename=setting.get_submit_filename(
-            output_dir=args.model_dir,
-            auc_score=model.model.best_score_["validation"]["AUC"],
-            format_name="cbm",
-        )
+    model_path = setting.get_submit_filename(
+        output_dir=args.model_dir,
+        auc_score=model.model.best_score_["validation"]["AUC"],
+        format_name="cbm",
     )
+    print(f"saving model : {model_path}")
+    model.save_model(filename=model_path)
+
     ######################## SAVE CONFIG
     print("\n--------------- Save Config   ---------------")
     setting.save_config(args, model.model.best_score_["validation"]["AUC"])
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = train_parse_args()
     main(args=args)

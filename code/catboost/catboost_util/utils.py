@@ -116,6 +116,7 @@ class Setting:
         )
         args_dict = vars(args)
         with open(file_path, "w", encoding="utf-8") as f:
+            print(f"saving config : {file_path}")
             json.dump(args_dict, f, indent="\t")
         return file_path
 
