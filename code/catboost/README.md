@@ -3,7 +3,8 @@
 ## How To Run?
 ```bash
     cd code/catboost & poetry install
-    python main.py # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --num_iterations=1000 --lr=0.1
+    python train.py # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --num_iterations=1000 --lr=0.1 --depth=6 --model_dir=./models/
+    python inference.py --model_name={prefix}_catboost.cbm # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --model_dir=./models/
 ```
 
 ### Directory Structure
@@ -12,16 +13,25 @@
     |-- README.md
     |-- catboost_util
     |   |-- __init__.py
-    |   |-- args.py         # Argument
-    |   |-- datasets.py     # Datasets for CatBoost
-    |   |-- models.py       # CatBoost Model Class
-    |   `-- utils.py        # Common Utils
-    |-- main.py             # train/inference code
-    |-- poetry.lock         # poetry
-    |-- pyproject.toml      # poetry
+    |   |-- args.py                                        # Argument
+    |   |-- datasets.py                                    # Datasets for CatBoost
+    |   |-- models.py                                      # CatBoost Model Class
+    |   `-- utils.py                                       # Common Utils
+    |-- configs                                            # Config Save Directory
+    |   `-- {prefix}_catboost.json
+    |-- models                                             # Model Save Directory
+    |   `-- {prefix}_catboost.cbm
+    |-- outputs                                            # Predict Ouput Directory
+    |   |-- {prefix}_catboost.csv
+    |   `-- {prefix}_catboost_inference.csv
+    |-- poetry.lock                                        # poetry
+    |-- pyproject.toml                                     # poetry
+    |-- train.py                                           # train model
+    `-- inference.py                                       # inference model
 ```
 
 ### Run OutPut
+#### Train Model
 ```bash
     --------------- CatBoost Set Random Seed ---------------
     --------------- CatBoost Set WandB ---------------
@@ -30,32 +40,50 @@
     --------------- CatBoost Data Loader   ---------------
     --------------- CatBoost Train   ---------------
     Default metric period is 5 because AUC is/are not implemented for GPU
-    0:      test: 0.7258499 best: 0.7258499 (0)     total: 46.9ms   remaining: 46.9s
-    100:    test: 0.7436019 best: 0.7436305 (98)    total: 6.03s    remaining: 53.7s
-    200:    test: 0.7440670 best: 0.7443389 (168)   total: 12.1s    remaining: 48s
-    bestTest = 0.7443389297
-    bestIteration = 168
-    Shrink model to first 169 iterations.
+    0:      test: 0.7258499 best: 0.7258499 (0)     total: 48.3ms   remaining: 48.3s
+    100:    test: 0.7436019 best: 0.7436305 (98)    total: 6.16s    remaining: 54.8s
+    200:    test: 0.7441152 best: 0.7442468 (197)   total: 12.4s    remaining: 49.3s
+    300:    test: 0.7443740 best: 0.7444003 (298)   total: 18.8s    remaining: 43.6s
+    bestTest = 0.7444003224
+    bestIteration = 298
+    Shrink model to first 299 iterations.
     --------------- CatBoost Valid   ---------------
-    VALID AUC : 0.7443389191086156 ACC : 0.6839378238341969
+    VALID AUC : 0.7444003333918232 ACC : 0.6824574389341229
 
-    BEST VALIDATION : {'Logloss': 0.5958350892423436, 'AUC': 0.7443411350250244}
+    BEST VALIDATION : {'Logloss': 0.5958337339094884, 'AUC': 0.7444003224372864}
 
     Feature Importance : 
-    [('assessmentItemID', 46.81424646566238),
-    ('user_acc', 32.47341283995978),
-    ('userID', 4.446694435416015),
-    ('testId', 4.220605327065889),
-    ('test_mean', 3.509694472157899),
-    ('user_correct_answer', 2.6702036778561857),
-    ('user_total_answer', 2.2787890541669227),
-    ('tag_mean', 1.8963748487486443),
-    ('KnowledgeTag', 0.999328079763184),
-    ('tag_sum', 0.3383336007269159),
-    ('test_sum', 0.2598353902503896),
-    ('Timestamp', 0.09248180822587801)]
+    [('assessmentItemID', 45.38904044230427),
+    ('user_acc', 31.889092871452355),
+    ('userID', 5.132668252821983),
+    ('testId', 4.636163875245036),
+    ('test_mean', 3.6584272758696597),
+    ('user_correct_answer', 2.9528448190841257),
+    ('user_total_answer', 2.536130978974387),
+    ('tag_mean', 1.9793931701734564),
+    ('KnowledgeTag', 1.0906650373308275),
+    ('tag_sum', 0.3572590814340498),
+    ('test_sum', 0.27473139531210844),
+    ('Timestamp', 0.10358279999767406)]
     --------------- CatBoost Predict   ---------------
 
     --------------- Save Output Predict   ---------------
-    writing prediction : ./outputs/{date_time}_{auc}_catboost.csv
+    writing prediction : ./outputs/{prefix}_catboost.csv
+
+    --------------- Save Model   ---------------
+    saving model : ./models/{prefix}_catboost.cbm
+
+    --------------- Save Config   ---------------
+    saving config : ./configs/{prefix}_catboost.json
+```
+
+#### Inference Model
+```bash
+    --------------- CatBoost Set Random Seed ---------------
+    --------------- CatBoost Load Data ---------------
+    --------------- CatBoost Load Model ---------------
+    --------------- CatBoost Predict   ---------------
+
+    --------------- Save Output Predict   ---------------
+    writing prediction : ./outputs/{prefix}_catboost_inference.csv
 ```
