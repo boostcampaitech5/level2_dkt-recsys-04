@@ -57,6 +57,24 @@ class CatBoost:
             verbose_eval=100,
         )
 
+    def save_model(
+        self,
+        filename: str,
+    ) -> bool:
+        """_summary_
+        CatBoost 모델 cbm(catboost model binary 형태) 저장
+        Args:
+            filename (str): File 경로
+
+        Returns:
+            bool: Save 성공 여부 반영
+        """
+        try:
+            self.model.save_model(fname=filename, format="cbm")
+        except Exception:
+            return False
+        return True
+
     def score(self, y: pd.Series, pred: np.ndarray) -> Tuple[float, float]:
         """_summary_
         AUC, ACC Score

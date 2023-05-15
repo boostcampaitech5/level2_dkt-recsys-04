@@ -91,9 +91,22 @@ def main(args: argparse.Namespace):
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")
     filename = setting.get_submit_filename(
-        args, model.model.best_score_["validation"]["AUC"]
+        args.output_dir,
+        model.model.best_score_["validation"]["AUC"],
     )
     setting.save_predict(filename=filename, predict=total_preds)
+
+    ######################## SAVE MODEL
+    print("\n--------------- Save Model   ---------------")
+    model.save_model(
+        filename=setting.get_submit_filename(
+            output_dir=args.model_dir,
+            auc_score=model.model.best_score_["validation"]["AUC"],
+            format_name="cbm",
+        )
+    )
+    ######################## SAVE CONFIG
+    print("\n--------------- Save Config   ---------------")
     setting.save_config(args, model.model.best_score_["validation"]["AUC"])
 
 

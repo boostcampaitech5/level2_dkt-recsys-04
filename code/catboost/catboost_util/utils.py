@@ -75,7 +75,9 @@ class Setting:
             pass
         return path
 
-    def get_submit_filename(self, args, auc_score: float) -> str:
+    def get_submit_filename(
+        self, output_dir: str, auc_score: float, format_name: str = "csv"
+    ) -> str:
         """
         [description]
         submit file을 저장할 경로를 반환하는 함수입니다.
@@ -87,10 +89,8 @@ class Setting:
         filename : submit file을 저장할 경로를 반환합니다.
         이 때, 파일명은 submit/날짜_시간_모델명.csv 입니다.
         """
-        self.make_dir(args.output_dir)
-        filename = (
-            f"{args.output_dir}{self.save_time}_{auc_score:.5f}_catboost.csv"
-        )
+        self.make_dir(output_dir)
+        filename = f"{output_dir}{self.save_time}_{auc_score:.5f}_catboost.{format_name}"
         return filename
 
     def save_config(
@@ -111,9 +111,8 @@ class Setting:
         Returns:
             str: 저장된 경로 반환
         """
-        self.make_dir(save_path)
-        file_path = os.path.join(
-            save_path, f"{self.save_time}_{auc_score:.5f}_config.json"
+        file_path = self.get_submit_filename(
+            output_dir=save_path, auc_score=auc_score, format_name="json"
         )
         args_dict = vars(args)
         with open(file_path, "w", encoding="utf-8") as f:

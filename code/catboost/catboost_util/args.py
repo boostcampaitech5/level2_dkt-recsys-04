@@ -13,7 +13,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--data_dir", default="/opt/ml/input/data", type=str, help=""
     )
-
+    parser.add_argument(
+        "--model_dir", default="./models/", type=str, help="model dir"
+    )
     parser.add_argument(
         "--output_dir", default="./outputs/", type=str, help="output dir"
     )
