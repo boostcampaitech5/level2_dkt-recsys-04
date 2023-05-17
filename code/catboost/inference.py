@@ -8,7 +8,6 @@ from catboost_util.models import CatBoost
 from catboost_util.utils import get_logger, Setting, logging_conf
 from catboost_util.datasets import (
     feature_engineering,
-    FEATS,
 )
 from catboost_util.args import inference_parse_args
 
@@ -45,7 +44,7 @@ def main(args: argparse.Namespace):
 
     ########################   INFERENCE
     print("--------------- CatBoost Predict   ---------------")
-    total_preds = model.pred(test_dataframe[FEATS])
+    total_preds = model.pred(test_dataframe)
 
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")

@@ -12,7 +12,6 @@ from catboost_util.datasets import (
     feature_engineering,
     custom_train_test_split,
     custom_label_split,
-    FEATS,
 )
 from catboost_util.args import train_parse_args
 
@@ -42,7 +41,13 @@ def main(args: argparse.Namespace):
 
     ######################## Feature Engineering
     dataframe = feature_engineering(dataframe)
+    print(
+        f"After Train/Valid DataSet Feature Engineering Columns : {dataframe.columns.values.tolist()}"
+    )
     test_dataframe = feature_engineering(test_dataframe)
+    print(
+        f"After Test DataSet Feature Engineering Columns : {test_dataframe.columns.values.tolist()}"
+    )
     test_dataframe = test_dataframe[
         test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
     ]
@@ -75,7 +80,12 @@ def main(args: argparse.Namespace):
     print(f"BEST VALIDATION : {model.model.best_score_['validation']}\n")
     print("Feature Importance : ")
     feature_importance = sorted(
-        dict(zip(FEATS, model.model.feature_importances_)).items(),
+        dict(
+            zip(
+                dataframe.columns.values.tolist(),
+                model.model.feature_importances_,
+            )
+        ).items(),
         key=lambda item: item[1],
         reverse=True,
     )
@@ -86,7 +96,7 @@ def main(args: argparse.Namespace):
 
     ########################   INFERENCE
     print("--------------- CatBoost Predict   ---------------")
-    total_preds = model.pred(test_dataframe[FEATS])
+    total_preds = model.pred(test_dataframe)
 
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")
