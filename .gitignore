@@ -419,6 +419,9 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# poetry
+poetry.lock
+
 # Baseline Code & DataSet
 /code/dkt
 /code/lightgcn
