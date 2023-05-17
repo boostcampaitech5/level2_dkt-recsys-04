@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "catboost_model"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+wandb = "^0.15.2"
+pandas = "^2.0.1"
+numpy = "^1.24.3"
+scikit-learn = "^1.2.2"
+catboost = "^1.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
