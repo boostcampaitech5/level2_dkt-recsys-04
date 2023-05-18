@@ -3,12 +3,14 @@ import argparse
 
 import torch
 import wandb
+import warnings
 
 from lightgcn_utils.args import parse_args
 from lightgcn_utils.datasets import prepare_dataset
 from lightgcn_utils import models
 from lightgcn_utils.utils import get_logger, set_seeds, logging_conf
 
+warnings.filterwarnings("ignore")
 
 logger = get_logger(logging_conf)
 
