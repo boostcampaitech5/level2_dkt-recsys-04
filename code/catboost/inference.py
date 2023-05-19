@@ -8,7 +8,6 @@ from catboost_util.models import CatBoost
 from catboost_util.utils import get_logger, Setting, logging_conf
 from catboost_util.datasets import (
     feature_engineering,
-    FEATS,
 )
 from catboost_util.args import inference_parse_args
 
@@ -24,18 +23,18 @@ def main(args: argparse.Namespace):
     ######################## DATA LOAD
     print("--------------- CatBoost Load Data ---------------")
     data_dir = args.data_dir
-
     # 테스트 세트 예측
     test_dataframe = pd.read_csv(os.path.join(data_dir, "test_data.csv"))
 
     ######################## Feature Engineering
-    test_dataframe = feature_engineering(test_dataframe)
+    test_dataframe = feature_engineering(args.feats, test_dataframe)
     test_dataframe = test_dataframe[
         test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
     ]
     ########################   LOAD Model
     print("--------------- CatBoost Load Model ---------------")
     cat_features = list(np.where(test_dataframe.dtypes == np.object_)[0])
+    print(f"Categoy : {cat_features}")
     model_path = os.path.join(args.model_dir, args.model_name)
     model = CatBoost(
         args,
@@ -45,7 +44,7 @@ def main(args: argparse.Namespace):
 
     ########################   INFERENCE
     print("--------------- CatBoost Predict   ---------------")
-    total_preds = model.pred(test_dataframe[FEATS])
+    total_preds = model.pred(test_dataframe)
 
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")
