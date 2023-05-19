@@ -90,49 +90,136 @@ class LGBM:
         return self.model.predict(data)
 
 
-def main(args: argparse.Namespace):
-    ########################   Set Random Seed
-    print("--------------- Set Random Seed ---------------")
-    setting.set_seeds(args.seed)
+class FeatureSelector:
+    def __init__(self, args: argparse.Namespace):
+        ########################   Set Random Seed
+        print("--------------- Set Random Seed ---------------")
+        setting.set_seeds(args.seed)
 
-    ######################## DATA LOAD
-    print("--------------- Load Data ---------------")
-    data_dir = args.data_dir
-    csv_file_path = os.path.join(data_dir, "train_data.csv")
-    dataframe = pd.read_csv(csv_file_path)
+        ######################## DATA LOAD
+        print("--------------- Load Data ---------------")
+        data_dir = args.data_dir
+        csv_file_path = os.path.join(data_dir, "train_data.csv")
+        dataframe = pd.read_csv(csv_file_path)
 
-    ######################## Feature Engineering
-    dataframe = feature_engineering(dataframe)
+        ######################## Feature Engineering
+        dataframe = feature_engineering(dataframe)
 
-    ########################   Data Split
-    print("--------------- Data Split   ---------------")
-    # 유저별 분리
-    train, valid = custom_train_test_split(dataframe)
+        ########################   Data Split
+        print("--------------- Data Split   ---------------")
+        # 유저별 분리
+        train, valid = custom_train_test_split(dataframe)
 
-    ########################   Data Loader
-    print("--------------- Data Loader   ---------------")
+        ########################   Data Loader
+        print("--------------- Data Loader   ---------------")
 
-    # X, y 값 분리
-    y_train, train = custom_label_split(train)
-    y_valid, valid = custom_label_split(valid)
+        # X, y 값 분리
+        self.y_train, self.train = custom_label_split(train)
+        self.y_valid, self.valid = custom_label_split(valid)
 
-    ########################   Feature Selecting (Forward selection)
-    print("--------------- Select features   ---------------")
-    features = train.columns.tolist()
-    feature_list = []
-    feature_selection_result = pd.DataFrame(
-        {
-            "features": ["0"] * len(features),
-            "len_features": ["0"] * len(features),
-            "valid_auc": np.zeros(len(features)),
-            "valid_acc": np.zeros(len(features)),
-        }
-    )
-    temp_features = features.copy()
+        ########################   Feature Selecting (Forward selection)
+        print("--------------- Select Features   ---------------")
+        self.features = self.train.columns.tolist()
+        self.feature_list = []
+        self.feature_selection_result = pd.DataFrame(
+            {
+                "features": ["0"] * len(self.features),
+                "len_features": ["0"] * len(self.features),
+                "valid_auc": np.zeros(len(self.features)),
+                "valid_acc": np.zeros(len(self.features)),
+            }
+        )
+        self.temp_features = self.features.copy()
+        self.args = args
 
-    for i in tqdm(range(len(features))):
-        train_temp = train[temp_features]
-        valid_temp = valid[temp_features]
+        if self.args.importance_type == "permutation":
+            self.model = self.model_train(
+                self.train, self.valid, self.y_train, self.y_valid, self.features
+            )
+
+    def select_features(self):
+        if self.args.importance_type == "permutation":
+            print("--------------- Permutation...   ---------------")
+            importances = self.perm_importance(self.model, self.train, self.y_train)
+            sort_index = list(importances.importances_mean.argsort())
+            print("--------------- Permutation Done!   ---------------")
+
+        for i in tqdm(range(len(self.features))):
+            if self.args.importance_type == "model":
+                self.model = self.model_train(
+                    self.train,
+                    self.valid,
+                    self.y_train,
+                    self.y_valid,
+                    self.temp_features,
+                )
+                importances = self.model_importance(self.model)
+
+            if self.args.importance_type == "permutation":
+                if i != 0:
+                    sort_index.remove(
+                        max(sort_index)
+                    )  # 반복문이 돌때마다 permutation importances index 제거
+            else:
+                sort_index = importances.importances_mean.argsort()
+
+            temp_result = pd.DataFrame(
+                importances.importances_mean[sort_index],
+                index=self.train[self.temp_features].columns[sort_index],
+            ).sort_values(0, ascending=False)
+            temp_result = temp_result.rename(columns={0: "importances"})
+
+            feature = list(temp_result.index)[0]
+            self.temp_features.remove(feature)
+            self.feature_list.append(feature)
+
+            model_temp = self.model_train(
+                self.train, self.valid, self.y_train, self.y_valid, self.feature_list
+            )
+
+            pred = model_temp.predict(self.valid[self.feature_list])
+            auc, acc = model_temp.score(self.y_valid, pred)
+
+            self.feature_selection_result.loc[i, "len_features"] = len(
+                self.feature_list
+            )
+            self.feature_selection_result.loc[i, "features"] = str(self.feature_list)
+            self.feature_selection_result.loc[i, "valid_auc"] = auc
+            self.feature_selection_result.loc[i, "valid_acc"] = acc
+
+            self.feature_selection_result = self.feature_selection_result.sort_values(
+                "valid_auc", ascending=False
+            ).reset_index(drop=True)
+            self.feature_selection_result.to_csv(
+                "feature_selection_result.csv", index=False
+            )
+
+        print("--------------- Saved Result ---------------")
+
+    def perm_importance(self, model, train_x, train_y):
+        importances = permutation_importance(
+            model,
+            train_x,
+            train_y,
+            scoring=make_scorer(roc_auc_score, greater_is_better=True),
+            n_repeats=self.args.n_repeats,
+            random_state=self.args.seed,
+        )
+
+        return importances
+
+    def model_importance(self, model):
+        importances = model.model.feature_importance()
+        importances = Bunch(**{"importances_mean": importances})
+
+        return importances
+
+    def shap_importance(self):
+        print("this has not been implemented yet.")
+
+    def model_train(self, train, valid, y_train, y_valid, features_):
+        train_temp = train[features_]
+        valid_temp = valid[features_]
         cat_features = list(np.where(train_temp.dtypes == np.object_)[0])
 
         lgb_train = lgb.Dataset(train_temp, y_train, categorical_feature=cat_features)
@@ -140,64 +227,10 @@ def main(args: argparse.Namespace):
             valid_temp, y_valid, reference=lgb_train, categorical_feature=cat_features
         )
 
-        model = LGBM(args)
+        model = LGBM(self.args)
         model.train(lgb_train, lgb_valid)
 
-        if args.importance_type == "permutation":
-            importances = permutation_importance(
-                model,
-                train_temp,
-                y_train,
-                scoring=make_scorer(roc_auc_score, greater_is_better=True),
-                n_repeats=args.n_repeats,
-                random_state=args.seed,
-            )
-        elif args.importance_type == "model":
-            importances = model.model.feature_importance()
-            importances = Bunch(**{"importances_mean": importances})
-
-        sort_index = importances.importances_mean.argsort()
-        temp_result = pd.DataFrame(
-            importances.importances_mean[sort_index],
-            index=train_temp.columns[sort_index],
-        ).sort_values(0, ascending=False)
-        temp_result = temp_result.rename(columns={0: "importances"})
-
-        feature = list(temp_result.index)[0]
-        temp_features.remove(feature)
-        feature_list.append(feature)
-
-        train_temp_ = train[feature_list]
-        valid_temp_ = valid[feature_list]
-        cat_features_temp = list(np.where(train_temp_.dtypes == np.object_)[0])
-
-        lgb_train_temp = lgb.Dataset(
-            train_temp_, y_train, categorical_feature=cat_features_temp
-        )
-        lgb_valid_temp = lgb.Dataset(
-            valid_temp_,
-            y_valid,
-            reference=lgb_train_temp,
-            categorical_feature=cat_features_temp,
-        )
-
-        model_temp = LGBM(args)
-        model_temp.train(lgb_train_temp, lgb_valid_temp)
-
-        pred = model_temp.predict(valid_temp_)
-        auc, acc = model_temp.score(y_valid, pred)
-
-        feature_selection_result.loc[i, "len_features"] = len(feature_list)
-        feature_selection_result.loc[i, "features"] = str(feature_list)
-        feature_selection_result.loc[i, "valid_auc"] = auc
-        feature_selection_result.loc[i, "valid_acc"] = acc
-
-        feature_selection_result = feature_selection_result.sort_values(
-            "valid_auc", ascending=False
-        ).reset_index(drop=True)
-        feature_selection_result.to_csv("feature_selection_result.csv", index=False)
-
-    print("--------------- Saved Result ---------------")
+        return model
 
 
 if __name__ == "__main__":
@@ -232,4 +265,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args=args)
+    selector = FeatureSelector(args)
+    selector.select_features()
