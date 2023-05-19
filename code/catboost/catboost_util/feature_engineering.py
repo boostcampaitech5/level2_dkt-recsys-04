@@ -42,7 +42,6 @@ class FeatureEnginnering:
     calculate_times_lda_latent : 각 문제 풀이 시간에 대한 latent를 저차원으로 lda
     caculate_item_latent_dirichlet_allocation : 각 고차원 데이터의 문제에 대한 K개의 주제(Topic) 비율을 알아내어 이를 저차원 데이터로 사용
     caculate_user_latent_dirichlet_allocation : 각 고차원 데이터의 유저에 대한 K개의 주제(Topic) 비율을 알아내어 이를 저차원 데이터로 사용
-
     """
 
     def __init__(self, df: pd.DataFrame, feats: list) -> None:
@@ -63,6 +62,10 @@ class FeatureEnginnering:
             success += condition
             if not condition:
                 print(f"Fail : {name}")
+        COLUMNS = list(self.df.columns)
+        COLUMNS.remove("answerCode")
+        COLUMNS.append("answerCode")
+        self.df = self.df[COLUMNS]
         print(f"FE Success : {success} / {len(self.feats)}")
 
     def calculate_solve_time_column(self, threshold: float = 700) -> bool:
@@ -121,7 +124,9 @@ class FeatureEnginnering:
             bool: 성공여부
         """
         try:
-            correct_t = self.df.groupby(["testId"])["answerCode"].agg(["mean", "sum"])
+            correct_t = self.df.groupby(["testId"])["answerCode"].agg(
+                ["mean", "sum"]
+            )
             correct_t.columns = ["test_mean", "test_sum"]
             self.df = pd.merge(self.df, correct_t, on=["testId"], how="left")
 
@@ -141,7 +146,9 @@ class FeatureEnginnering:
                 ["mean", "sum"]
             )
             correct_k.columns = ["tag_mean", "tag_sum"]
-            self.df = pd.merge(self.df, correct_k, on=["KnowledgeTag"], how="left")
+            self.df = pd.merge(
+                self.df, correct_k, on=["KnowledgeTag"], how="left"
+            )
         except Exception:
             return False
         return True
@@ -156,20 +163,20 @@ class FeatureEnginnering:
         """
         try:
             # 미래 정보
-            self.df["correct_shift_-2"] = self.df.groupby("userID")["answerCode"].shift(
-                -2
-            )
-            self.df["correct_shift_-1"] = self.df.groupby("userID")["answerCode"].shift(
-                -1
-            )
+            self.df["correct_shift_-2"] = self.df.groupby("userID")[
+                "answerCode"
+            ].shift(-2)
+            self.df["correct_shift_-1"] = self.df.groupby("userID")[
+                "answerCode"
+            ].shift(-1)
 
             # 과거 정보
-            self.df["correct_shift_1"] = self.df.groupby("userID")["answerCode"].shift(
-                1
-            )
-            self.df["correct_shift_2"] = self.df.groupby("userID")["answerCode"].shift(
-                2
-            )
+            self.df["correct_shift_1"] = self.df.groupby("userID")[
+                "answerCode"
+            ].shift(1)
+            self.df["correct_shift_2"] = self.df.groupby("userID")[
+                "answerCode"
+            ].shift(2)
         except Exception:
             return False
         return True
@@ -182,7 +189,9 @@ class FeatureEnginnering:
             bool: 성공여부
         """
         try:
-            self.df["total_used_time"] = self.df.groupby("userID")["time"].cumsum()
+            self.df["total_used_time"] = self.df.groupby("userID")[
+                "time"
+            ].cumsum()
         except Exception:
             return False
         return True
@@ -196,8 +205,12 @@ class FeatureEnginnering:
         """
         try:
             # 과거에 맞춘 문제 수
-            self.df["shift"] = self.df.groupby("userID")["answerCode"].shift().fillna(0)
-            self.df["past_correct"] = self.df.groupby("userID")["shift"].cumsum()
+            self.df["shift"] = (
+                self.df.groupby("userID")["answerCode"].shift().fillna(0)
+            )
+            self.df["past_correct"] = self.df.groupby("userID")[
+                "shift"
+            ].cumsum()
             self.df.drop("shift", axis=1, inplace=True)
         except Exception:
             return False
@@ -280,8 +293,12 @@ class FeatureEnginnering:
             self.df["past_count"] = self.df.groupby("userID").cumcount()
 
             # 과거에 맞춘 문제 수
-            self.df["shift"] = self.df.groupby("userID")["answerCode"].shift().fillna(0)
-            self.df["past_correct"] = self.df.groupby("userID")["shift"].cumsum()
+            self.df["shift"] = (
+                self.df.groupby("userID")["answerCode"].shift().fillna(0)
+            )
+            self.df["past_correct"] = self.df.groupby("userID")[
+                "shift"
+            ].cumsum()
 
             # 과거 평균 정답률
             self.df["average_correct"] = (
@@ -435,7 +452,9 @@ class FeatureEnginnering:
                 lambda x: pd.to_datetime(x, unit="s").dt.hour
             )
             # 시간대별 정답률
-            hour_dict = self.df.groupby(["hour_temp"])["answerCode"].mean().to_dict()
+            hour_dict = (
+                self.df.groupby(["hour_temp"])["answerCode"].mean().to_dict()
+            )
             self.df["correct_per_hour"] = self.df["hour"].map(hour_dict)
 
             self.df.drop("hour_temp", axis=1, inplace=True)
@@ -484,9 +503,9 @@ class FeatureEnginnering:
         try:
             # custom 함수 적용
             # time만 transform하였다
-            self.df["normalized_time"] = self.df.groupby("userID")["time"].transform(
-                lambda x: (x - x.mean()) / x.std()
-            )
+            self.df["normalized_time"] = self.df.groupby("userID")[
+                "time"
+            ].transform(lambda x: (x - x.mean()) / x.std())
         except Exception:
             return False
         return True
@@ -676,7 +695,9 @@ class FeatureEnginnering:
                 pca.transform(edu_pca_df), index=index, columns=columns
             ).reset_index()
             self.df = (
-                self.df.merge(right=user_pca_df, left_on="userID", right_on="index")
+                self.df.merge(
+                    right=user_pca_df, left_on="userID", right_on="index"
+                )
                 .sort_values(by=["userID", "Timestamp"])
                 .reset_index(drop=True)
                 .drop(["index"], axis=1)
@@ -719,7 +740,9 @@ class FeatureEnginnering:
             ).reset_index()
             self.df = (
                 self.df.merge(
-                    right=item_pca_df, left_on="assessmentItemID", right_on="index"
+                    right=item_pca_df,
+                    left_on="assessmentItemID",
+                    right_on="index",
                 )
                 .sort_values(by=["userID", "Timestamp"])
                 .reset_index(drop=True)
@@ -803,7 +826,9 @@ class FeatureEnginnering:
             return False
         return True
 
-    def caculate_item_latent_dirichlet_allocation(self, n_component: int = 2) -> bool:
+    def caculate_item_latent_dirichlet_allocation(
+        self, n_component: int = 2
+    ) -> bool:
         """(50초 정도 걸림)
         - 토픽 모델링(Topic Modeling)에 속하는 비지도 학습 모델로 문서를 자신이 지정한 K개의 주제(Topic) 중 하나로 분류하기 위해 사용된다.
         - 여기서는 각 고차원 데이터의 K개의 주제(Topic) 비율을 알아내어 이를 저차원 데이터로 사용한다.
@@ -854,7 +879,9 @@ class FeatureEnginnering:
             return False
         return True
 
-    def caculate_user_latent_dirichlet_allocation(self, n_component: int = 2) -> bool:
+    def caculate_user_latent_dirichlet_allocation(
+        self, n_component: int = 2
+    ) -> bool:
         """(50초 정도 걸림)
         - 토픽 모델링(Topic Modeling)에 속하는 비지도 학습 모델로 문서를 자신이 지정한 K개의 주제(Topic) 중 하나로 분류하기 위해 사용된다.
         - 여기서는 각 고차원 데이터의 K개의 주제(Topic) 비율을 알아내어 이를 저차원 데이터로 사용한다.

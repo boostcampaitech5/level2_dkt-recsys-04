@@ -16,7 +16,9 @@ from catboost_util.datasets import (
 )
 from catboost_util.args import train_parse_args
 
+# ignore warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
 setting = Setting()
 logger = get_logger(logging_conf)
 
@@ -42,11 +44,11 @@ def main(args: argparse.Namespace):
     test_dataframe = pd.read_csv(os.path.join(data_dir, "test_data.csv"))
 
     ######################## Feature Engineering
-    dataframe = feature_engineering(dataframe)
+    dataframe = feature_engineering(args.feats, dataframe)
     print(
         f"After Train/Valid DataSet Feature Engineering Columns : {dataframe.columns.values.tolist()}"
     )
-    test_dataframe = feature_engineering(test_dataframe)
+    test_dataframe = feature_engineering(args.feats, test_dataframe)
     print(
         f"After Test DataSet Feature Engineering Columns : {test_dataframe.columns.values.tolist()}"
     )
@@ -68,8 +70,14 @@ def main(args: argparse.Namespace):
 
     ########################   TRAIN
     print("--------------- CatBoost Train   ---------------")
+    print(
+        f"Train Feature Engineering Columns : {train.columns.values.tolist()}"
+    )
+    cat_features_idx = list(np.where((train.dtypes == np.object_)))[0]
+    features = train.columns.values.tolist()
+    cat_features = [features[idx] for idx in cat_features_idx]
 
-    cat_features = list(np.where((train.dtypes == np.object_)))[0]
+    print(f"Categoy : {cat_features}")
     model = CatBoost(args, cat_features)
     model.train(train, y_train, valid, y_valid)
 

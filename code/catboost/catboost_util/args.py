@@ -1,5 +1,38 @@
 import argparse
 
+FEATS = [
+    "calculate_cumulative_stats_by_time",
+    "calculate_overall_accuracy_by_testID",
+    "calculate_overall_accuracy_by_KnowledgeTag",
+    # # 시간 칼럼을 사용하는 FE
+    "calculate_solve_time_column",  # Time 관련 Feature Engineering할 때 필수!
+    "check_answer_at_time",
+    "calculate_total_time_per_user",
+    "calculate_past_correct_answers_per_user",
+    "calculate_future_correct_answers_per_user",
+    "calculate_past_correct_attempts_per_user",
+    "calculate_past_solved_problems_per_user",
+    "calculate_past_average_accuracy_per_user",
+    "calculate_past_average_accuracy_current_problem_per_user",
+    "calculate_rolling_mean_time_last_3_problems_per_user",
+    # "calculate_mean_and_stddev_per_user", # 오류가 많아서 스킵
+    "calculate_median_time_per_user",
+    "calculate_problem_solving_time_per_user",
+    "calculate_accuracy_by_time_of_day",
+    "calculate_user_activity_time_preference",
+    "calculate_normalized_time_per_user",
+    "calculate_relative_time_spent_per_user",
+    "calculate_time_cut_column",
+    # "calculate_items_svd_latent",
+    # "calculate_times_nmf_latent",
+    # "calculate_users_pca_latent",
+    # "calculate_items_pca_latent",
+    # "calculate_times_pca_latent",
+    # "calculate_times_lda_latent",
+    # "caculate_item_latent_dirichlet_allocation",  # 50초 걸림
+    # "caculate_user_latent_dirichlet_allocation",  # 50초 걸림
+]
+
 
 def train_parse_args() -> argparse.Namespace:
     """ """
@@ -25,6 +58,12 @@ def train_parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
     parser.add_argument("--depth", default=6, type=int, help="depth")
+    parser.add_argument(
+        "--feats",
+        default=FEATS,
+        type=list,
+        help="feats",
+    )
 
     args = parser.parse_args()
 
@@ -49,7 +88,12 @@ def inference_parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model_name", default="catboost.cbm", type=str, help="output dir"
     )
-
+    parser.add_argument(
+        "--feats",
+        default=FEATS,
+        type=list,
+        help="feats",
+    )
     args = parser.parse_args()
 
     return args
