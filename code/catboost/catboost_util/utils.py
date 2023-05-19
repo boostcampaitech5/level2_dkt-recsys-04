@@ -76,7 +76,7 @@ class Setting:
         return path
 
     def get_submit_filename(
-        self, output_dir: str, auc_score: float, format_name: str = "csv"
+        self, output_dir: str, auc_score: float, cv_info: str, format_name: str = "csv"
     ) -> str:
         """
         [description]
@@ -90,13 +90,14 @@ class Setting:
         이 때, 파일명은 submit/날짜_시간_모델명.csv 입니다.
         """
         self.make_dir(output_dir)
-        filename = f"{output_dir}{self.save_time}_{auc_score:.5f}_catboost.{format_name}"
+        filename = f"{output_dir}{self.save_time}_{auc_score:.5f}_catboost_{cv_info}.{format_name}"
         return filename
 
     def save_config(
         self,
         args: argparse.Namespace,
         auc_score: float,
+        cv_info: str,
         save_path: str = "./configs/",
     ) -> str:
         """_summary_
@@ -112,7 +113,10 @@ class Setting:
             str: 저장된 경로 반환
         """
         file_path = self.get_submit_filename(
-            output_dir=save_path, auc_score=auc_score, format_name="json"
+            output_dir=save_path,
+            auc_score=auc_score,
+            cv_info=cv_info,
+            format_name="json",
         )
         args_dict = vars(args)
         with open(file_path, "w", encoding="utf-8") as f:
@@ -124,9 +128,7 @@ class Setting:
 logging_conf = {  # only used when 'user_wandb==False'
     "version": 1,
     "formatters": {
-        "basic": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        }
+        "basic": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
     },
     "handlers": {
         "console": {
