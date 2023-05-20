@@ -62,14 +62,15 @@ FEATS = [
     "calculate_normalized_time_per_user",
     "calculate_relative_time_spent_per_user",
     "calculate_time_cut_column",
-    # "calculate_items_svd_latent",
-    # "calculate_times_nmf_latent",
-    # "calculate_users_pca_latent",
-    # "calculate_items_pca_latent",
-    # "calculate_times_pca_latent",
-    # "calculate_times_lda_latent",
-    # "caculate_item_latent_dirichlet_allocation",  # 50초 걸림
-    # "caculate_user_latent_dirichlet_allocation",  # 50초 걸림
+    # latent feature
+    "calculate_items_svd_latent",
+    "calculate_times_nmf_latent",
+    "calculate_users_pca_latent",
+    "calculate_items_pca_latent",
+    "calculate_times_pca_latent",
+    "calculate_times_lda_latent",
+    "caculate_item_latent_dirichlet_allocation",  # 50초 걸림
+    "caculate_user_latent_dirichlet_allocation",  # 50초 걸림
 ]
 
 
@@ -267,6 +268,10 @@ class FeatureSelector:
         except:
             print("'time_cut_enc' column not in dataframe.")
             pass
+
+        for col in dataframe.columns:
+            if str(col).startswith('index'):
+                dataframe.drop(col, axis=1, inplace=True)
 
         return dataframe
 
