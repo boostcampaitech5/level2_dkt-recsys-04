@@ -1,7 +1,43 @@
+import time
+from datetime import datetime
 import pandas as pd
 from typing import Tuple
 import random
 from .feature_engineering import FeatureEnginnering
+from sklearn.preprocessing import LabelEncoder
+
+
+def preprocessing(dataframe: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
+    cate_cols = ["assessmentItemID", "testId"]
+    # LabelEncoding
+    for col in cate_cols:
+        le = LabelEncoder()
+        # For UNKNOWN class
+        a = dataframe[col].unique().tolist() + ["unknown"]
+        le.fit(a)
+
+        # cate_cols 는 범주형이라고 가정
+        dataframe[col] = dataframe[col].astype(str)
+        encoded_values = le.transform(dataframe[col])
+        dataframe[col] = encoded_values
+
+    def convert_time(s: str):
+        timestamp = time.mktime(
+            datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple()
+        )
+        return int(timestamp)
+
+    dataframe["Timestamp"] = dataframe["Timestamp"].map(lambda x: str(x))
+    dataframe["Timestamp"] = dataframe["Timestamp"].apply(convert_time)
+    cate_cols.append("Timestamp")
+    try:
+        dataframe["time_cut_enc"] = dataframe["time_cut_enc"].astype(int)
+        cate_cols.append("time_cut_enc")
+    except Exception:
+        print("'time_cut_enc' column not in dataframe.")
+        pass
+
+    return cate_cols, dataframe
 
 
 def feature_engineering(feats: list, df: pd.DataFrame) -> pd.DataFrame:

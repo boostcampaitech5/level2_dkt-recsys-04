@@ -34,12 +34,13 @@ class Setting:
         random.seed(seed)
         np.random.seed(seed)
 
-    def __init__(self) -> None:
+    def __init__(self, args) -> None:
         now = time.localtime()
         now_date = time.strftime("%Y%m%d", now)
         now_hour = time.strftime("%X", now)
         save_time = now_date + "_" + now_hour.replace(":", "")
         self.save_time = save_time
+        self.args = args
 
     def save_predict(self, filename: str, predict: pd.DataFrame) -> bool:
         """_summary_
@@ -89,8 +90,17 @@ class Setting:
         filename : submit file을 저장할 경로를 반환합니다.
         이 때, 파일명은 submit/날짜_시간_모델명.csv 입니다.
         """
-        self.make_dir(output_dir)
-        filename = f"{output_dir}{self.save_time}_{auc_score:.5f}_catboost.{format_name}"
+
+        if self.args.model == "CatBoost":
+            self.make_dir(output_dir)
+            output_dir = os.path.join(output_dir, "CatBoost")
+            self.make_dir(output_dir)
+            filename = f"{output_dir}/{self.save_time}_{auc_score:.5f}_catboost.{format_name}"
+        elif self.args.model == "LGBM":
+            self.make_dir(output_dir)
+            output_dir = os.path.join(output_dir, "LGBM")
+            self.make_dir(output_dir)
+            filename = f"{output_dir}/{self.save_time}_{auc_score:.5f}_lgbm.{format_name}"
         return filename
 
     def save_config(

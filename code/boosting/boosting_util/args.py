@@ -37,7 +37,15 @@ FEATS = [
 def train_parse_args() -> argparse.Namespace:
     """ """
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=[
+            "CatBoost",
+            "LGBM",
+        ],
+        help="학습 및 예측할 모델을 선택할 수 있습니다.",
+    )
     parser.add_argument("--seed", default=42, type=int, help="seed")
     parser.add_argument(
         "--use_cuda_if_available", default=True, type=bool, help="Use GPU"
@@ -56,6 +64,10 @@ def train_parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--num_iterations", default=1000, type=int, help="num_iterations"
     )
+    parser.add_argument(
+        "--num_boost_round", default=100, type=int, help="num_boost_round"
+    )
+    parser.add_argument("--num_leaves", default=31, type=int, help="num_leaves")
     parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
     parser.add_argument("--depth", default=6, type=int, help="depth")
     parser.add_argument(
@@ -73,7 +85,15 @@ def train_parse_args() -> argparse.Namespace:
 def inference_parse_args() -> argparse.Namespace:
     """ """
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=[
+            "CatBoost",
+            "LGBM",
+        ],
+        help="학습 및 예측할 모델을 선택할 수 있습니다.",
+    )
     parser.add_argument("--seed", default=42, type=int, help="seed")
 
     parser.add_argument(

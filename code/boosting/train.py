@@ -6,36 +6,39 @@ from pprint import pprint
 import wandb
 import numpy as np
 import pandas as pd
+import lightgbm as lgb
 
-from catboost_util.models import CatBoost
-from catboost_util.utils import get_logger, Setting, logging_conf
-from catboost_util.datasets import (
+from boosting_util.models import Model
+from boosting_util.utils import get_logger, Setting, logging_conf
+from boosting_util.datasets import (
+    preprocessing,
     feature_engineering,
     custom_train_test_split,
     custom_label_split,
 )
-from catboost_util.args import train_parse_args
+from boosting_util.args import train_parse_args
 
 # ignore warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-setting = Setting()
 logger = get_logger(logging_conf)
 
 
 def main(args: argparse.Namespace):
+    setting = Setting(args)
+
     ########################   Set Random Seed
-    print("--------------- CatBoost Set Random Seed ---------------")
+    print(f"--------------- {args.model} Set Random Seed ---------------")
     setting.set_seeds(args.seed)
 
     ########################   Set WandB
-    print("--------------- CatBoost Set WandB ---------------")
+    print(f"--------------- {args.model} Set WandB ---------------")
     # Wandb
     # wandb.login()
     # wandb.init(project="dkt", config=vars(args))
 
     ######################## DATA LOAD
-    print("--------------- CatBoost Load Data ---------------")
+    print(f"--------------- {args.model} Load Data ---------------")
     data_dir = args.data_dir
     csv_file_path = os.path.join(data_dir, "train_data.csv")
     dataframe = pd.read_csv(csv_file_path)
@@ -45,6 +48,9 @@ def main(args: argparse.Namespace):
 
     ######################## Feature Engineering
     dataframe = feature_engineering(args.feats, dataframe)
+
+    # Category Feature 선택
+    cat_features, dataframe = preprocessing(dataframe)
     print(
         f"After Train/Valid DataSet Feature Engineering Columns : {dataframe.columns.values.tolist()}"
     )
@@ -55,45 +61,60 @@ def main(args: argparse.Namespace):
     test_dataframe = test_dataframe[
         test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
     ]
+    # Category Feature 선택
+    cat_features, test_dataframe = preprocessing(test_dataframe)
 
     ########################   Data Split
-    print("--------------- CatBoost Data Split   ---------------")
+    print(f"--------------- {args.model} Data Split   ---------------")
     # 유저별 분리
     train, valid = custom_train_test_split(dataframe)
 
     ########################   Data Loader
-    print("--------------- CatBoost Data Loader   ---------------")
+    print(f"--------------- {args.model} Data Loader   ---------------")
 
     # X, y 값 분리
     y_train, train = custom_label_split(train)
     y_valid, valid = custom_label_split(valid)
 
+    if args.model == "LGBM":
+        lgb_train = lgb.Dataset(
+            train,
+            y_train,
+            categorical_feature=cat_features,
+        )
+        lgb_valid = lgb.Dataset(
+            valid,
+            y_valid,
+            reference=lgb_train,
+            categorical_feature=cat_features,
+        )
+
     ########################   TRAIN
-    print("--------------- CatBoost Train   ---------------")
+    print(f"--------------- {args.model} Train   ---------------")
     print(
         f"Train Feature Engineering Columns : {train.columns.values.tolist()}"
     )
-    cat_features_idx = list(np.where((train.dtypes == np.object_)))[0]
-    features = train.columns.values.tolist()
-    cat_features = [features[idx] for idx in cat_features_idx]
 
     print(f"Categoy : {cat_features}")
-    model = CatBoost(args, cat_features)
-    model.train(train, y_train, valid, y_valid)
+
+    model = Model(args.model, args, cat_features).load_model()
+    if args.model == "CatBoost":
+        model.train(train, y_train, valid, y_valid)
+    elif args.model == "LGBM":
+        model.train(lgb_train, lgb_valid)
 
     ########################   VALID
-    print("--------------- CatBoost Valid   ---------------")
+    print(f"--------------- {args.model} Valid   ---------------")
     valid_preds = model.pred(valid)
     auc, acc = model.score(y_valid, valid_preds)
     print(f"VALID AUC : {auc} ACC : {acc}\n")
-
-    print(f"BEST VALIDATION : {model.model.best_score_['validation']}\n")
+    print(f"BEST VALIDATION : {model.best_validation_score}\n")
     print("Feature Importance : ")
     feature_importance = sorted(
         dict(
             zip(
-                dataframe.columns.values.tolist(),
-                model.model.feature_importances_,
+                train.columns.values.tolist(),
+                model.feature_importance,
             )
         ).items(),
         key=lambda item: item[1],
@@ -105,14 +126,14 @@ def main(args: argparse.Namespace):
     )
 
     ########################   INFERENCE
-    print("--------------- CatBoost Predict   ---------------")
-    total_preds = model.pred(test_dataframe)
+    print(f"--------------- {args.model} Predict   ---------------")
+    total_preds = model.pred(test_dataframe.drop(["answerCode"], axis=1))
 
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")
     filename = setting.get_submit_filename(
-        args.output_dir,
-        model.model.best_score_["validation"]["AUC"],
+        output_dir=args.output_dir,
+        auc_score=model.best_validation_score,
     )
     setting.save_predict(filename=filename, predict=total_preds)
 
@@ -120,7 +141,7 @@ def main(args: argparse.Namespace):
     print("\n--------------- Save Model   ---------------")
     model_path = setting.get_submit_filename(
         output_dir=args.model_dir,
-        auc_score=model.model.best_score_["validation"]["AUC"],
+        auc_score=model.best_validation_score,
         format_name="cbm",
     )
     print(f"saving model : {model_path}")
@@ -128,7 +149,7 @@ def main(args: argparse.Namespace):
 
     ######################## SAVE CONFIG
     print("\n--------------- Save Config   ---------------")
-    setting.save_config(args, model.model.best_score_["validation"]["AUC"])
+    setting.save_config(args, model.best_validation_score)
 
 
 if __name__ == "__main__":

@@ -54,6 +54,11 @@ class FeatureEnginnering:
         self.feats = feats
         self.call_methods()
 
+        # index col 제거
+        for col in self.df.columns.tolist():
+            if str(col).startswith("index"):
+                self.df.drop(col, axis=1, inplace=True)
+
     def call_methods(self):
         success = 0
         for name in self.feats:
