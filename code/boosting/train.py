@@ -139,10 +139,11 @@ def main(args: argparse.Namespace):
 
     ######################## SAVE MODEL
     print("\n--------------- Save Model   ---------------")
+    format_name = "cbm" if args.model == "CatBoost" else "txt"
     model_path = setting.get_submit_filename(
         output_dir=args.model_dir,
         auc_score=model.best_validation_score,
-        format_name="cbm",
+        format_name=format_name,
     )
     print(f"saving model : {model_path}")
     model.save_model(filename=model_path)
