@@ -41,8 +41,8 @@ class CatBoost:
         self,
         train: pd.DataFrame,
         y_train: pd.Series,
-        valid: pd.DataFrame,
-        y_valid: pd.Series,
+        valid: pd.DataFrame = None,
+        y_valid: pd.Series = None,
     ) -> None:
         """_summary_
         CatBoost Train 함수
@@ -52,11 +52,15 @@ class CatBoost:
             valid (pd.DataFrame): valid dataset
             y_valid (pd.Series): valid label
         """
+        eval_set = None
+        if valid is not None and y_valid is not None:
+            eval_set = (valid, y_valid)
+
         self.model.fit(
             train,
             y_train,
             cat_features=self.cat_features,
-            eval_set=(valid, y_valid),
+            eval_set=eval_set,
             use_best_model=True,
             early_stopping_rounds=100,
             verbose_eval=100,
