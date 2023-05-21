@@ -1,10 +1,13 @@
 import os
+import re
 import json
 import random
 import time
 import argparse
 import pandas as pd
 import numpy as np
+
+from typing import List
 
 import logging
 import logging.config
@@ -177,3 +180,64 @@ def get_logger(logger_conf: dict) -> logging.Logger:
     logging.config.dictConfig(logger_conf)
     logger = logging.getLogger()
     return logger
+
+
+def find_files_with_string(path: str, search_string: str) -> list:
+    """
+
+    해당 경로에서 해당 문자열을 가지는 파일명을 모두 반환하는 함수
+
+    Args:
+        path (str): 탐색할 디렉토리
+        search_string (str): 탐색할 문자열
+
+    Returns:
+        list: 파일 리스트
+    """
+    files = []
+    for file_name in os.listdir(path):
+        if file_name.startswith(search_string):
+            files.append(file_name)
+    return files
+
+
+def calculate_average_from_list(predicts: list) -> np.ndarray:
+    """
+
+    predicts 리스트의 평균을 구하여 최종 predict를 구하는 함수
+
+    Args:
+        predicts (list): np.ndarray 리스트
+
+    Returns:
+        np.ndarray: average_arr
+    """
+    sum_arr = predicts[0]
+    for arr in predicts[1:]:
+        sum_arr += arr
+    average_arr = sum_arr / len(predicts)
+    return average_arr
+
+
+def calculate_average_score_from_extract_numbers_from_strings(
+    string_list: List[str],
+) -> float:
+    """
+
+    AUC Score를 반환하는 함수
+    20230521_231338_0.85161_catboost_tscv_1.cbm -> 0.85161
+
+    Args:
+        string_list (List[str]): 모델의 이름중
+
+    Returns:
+        float: AUC Score의 평균을 반환
+    """
+    numbers = 0.0
+    pattern = r"[-+]?\d*\.?\d+|\d+"  # 숫자 또는 실수에 매칭되는 정규 표현식 패턴
+    for string in string_list:
+        matches = re.findall(pattern, string)
+        for match in matches:
+            if "." in match:  # 소수점이 있는 경우만 실수로 추출
+                numbers += float(match)
+    return numbers / len(string_list)

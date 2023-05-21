@@ -76,16 +76,16 @@ def main(args: argparse.Namespace):
 
     if args.use_kfold:
         CV = KFold
-        cv_info = "kfold" + str(args.n_splits)
+        cv_info = "kfold"
     elif args.use_skfold:
         CV = StratifiedKFold
-        cv_info = "skfold" + str(args.n_splits)
+        cv_info = "skfold"
     elif args.use_tscv:
         CV = TimeSeriesSplit
-        cv_info = "tscv" + str(args.n_splits)
+        cv_info = "tscv"
     elif args.use_btscv:
         CV = BlockingTimeSeriesSplit
-        cv_info = "btscv" + str(args.n_splits)
+        cv_info = "btscv"
 
     ########################   Data Loader
     print(f"--------------- {args.model} Data Loader   ---------------")
@@ -147,6 +147,18 @@ def main(args: argparse.Namespace):
             width=50,
         )
 
+        ######################## SAVE MODEL
+        print("\n--------------- Save Model   ---------------")
+        format_name = "cbm" if args.model == "CatBoost" else "txt"
+        model_path = setting.get_submit_filename(
+            output_dir=args.model_dir,
+            auc_score=auc,
+            cv_info=cv_info + f"_{str(i+1)}",
+            format_name=format_name,
+        )
+        print(f"saving model : {model_path}")
+        model.save_model(filename=model_path)
+
     ########################   PRINT THE CV SCORES
     print("--------------- Summarize Cross-Validation Scores   ---------------")
     print("CV Scores:")
@@ -164,45 +176,48 @@ def main(args: argparse.Namespace):
         print(f"{metric_name}: {np.std(scores):.4f}")
 
     ########################   TRAIN
-    print(f"--------------- {args.model} Train   ---------------")
-    model = Model(args.model, args, cat_features).load_model()
-    if args.model == "LGBM":
-        lgb_train = lgb.Dataset(
-            X_train,
-            y_train,
-            categorical_feature=cat_features,
-        )
-        model.train(lgb_train=lgb_train)
-    else:
-        model.train(X_train, y_train)
+    # print(f"--------------- {args.model} Train   ---------------")
+    # model = Model(args.model, args, cat_features).load_model()
+    # if args.model == "LGBM":
+    #     lgb_train = lgb.Dataset(
+    #         X_train,
+    #         y_train,
+    #         categorical_feature=cat_features,
+    #     )
+    #     model.train(lgb_train=lgb_train)
+    # else:
+    #     model.train(X_train, y_train)
 
     ########################   INFERENCE
-    print(f"--------------- {args.model} Predict   ---------------")
-    total_preds = model.pred(test_dataframe.drop(["answerCode"], axis=1))
+    # print(f"--------------- {args.model} Predict   ---------------")
+    # total_preds = model.pred(test_dataframe.drop(["answerCode"], axis=1))
 
-    ######################## SAVE PREDICT
-    print("\n--------------- Save Output Predict   ---------------")
-    filename = setting.get_submit_filename(
-        output_dir=args.output_dir,
-        auc_score=np.mean(cv_scores["AUC"]),
-        cv_info=cv_info,
-    )
-    setting.save_predict(filename=filename, predict=total_preds)
+    # ######################## SAVE PREDICT
+    # print("\n--------------- Save Output Predict   ---------------")
+    # filename = setting.get_submit_filename(
+    #     output_dir=args.output_dir,
+    #     auc_score=np.mean(cv_scores["AUC"]),
+    #     cv_info=cv_info,
+    # )
+    # setting.save_predict(filename=filename, predict=total_preds)
 
-    ######################## SAVE MODEL
-    print("\n--------------- Save Model   ---------------")
-    format_name = "cbm" if args.model == "CatBoost" else "txt"
-    model_path = setting.get_submit_filename(
-        output_dir=args.model_dir,
-        auc_score=np.mean(cv_scores["AUC"]),
-        cv_info=cv_info,
-        format_name=format_name,
-    )
-    print(f"saving model : {model_path}")
-    model.save_model(filename=model_path)
+    # ######################## SAVE MODEL
+    # print("\n--------------- Save Model   ---------------")
+    # format_name = "cbm" if args.model == "CatBoost" else "txt"
+    # model_path = setting.get_submit_filename(
+    #     output_dir=args.model_dir,
+    #     auc_score=np.mean(cv_scores["AUC"]),
+    #     cv_info=cv_info,
+    #     format_name=format_name,
+    # )
+    # print(f"saving model : {model_path}")
+    # model.save_model(filename=model_path)
 
     ######################## SAVE CONFIG
     print("\n--------------- Save Config   ---------------")
+    print(
+        f"Inferencing CV : python inference.py --model={args.model} --model_name={setting.save_time}"
+    )
     setting.save_config(args, np.mean(cv_scores["AUC"]), cv_info)
 
 

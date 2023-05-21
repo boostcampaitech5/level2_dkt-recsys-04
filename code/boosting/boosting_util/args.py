@@ -116,7 +116,7 @@ def cv_parse_args() -> argparse.Namespace:
         "--num_boost_round", default=100, type=int, help="num_boost_round"
     )
     parser.add_argument(
-        "--use_kfold", default=False, type=bool, help="Use K-Fold CV"
+        "--use_kfold", default=True, type=bool, help="Use K-Fold CV"
     )
     parser.add_argument(
         "--use_skfold",
@@ -125,7 +125,7 @@ def cv_parse_args() -> argparse.Namespace:
         help="Use Stratified K-Fold CV",
     )
     parser.add_argument(
-        "--use_tscv", default=True, type=bool, help="Use Time Series CV"
+        "--use_tscv", default=False, type=bool, help="Use Time Series CV"
     )
     parser.add_argument(
         "--use_btscv",
