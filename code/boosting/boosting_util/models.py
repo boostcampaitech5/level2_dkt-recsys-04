@@ -65,8 +65,11 @@ class CatBoost:
             early_stopping_rounds=100,
             verbose_eval=100,
         )
-        self.best_validation_score = self.model.best_score_["validation"]["AUC"]
-        self.feature_importance = self.model.feature_importances_
+        if eval_set:
+            self.best_validation_score = self.model.best_score_["validation"][
+                "AUC"
+            ]
+            self.feature_importance = self.model.feature_importances_
 
     def load_model(
         self,
@@ -167,7 +170,7 @@ class LGBM:
     def train(
         self,
         lgb_train: lgb.Dataset,
-        lgb_valid: lgb.Dataset,
+        lgb_valid: lgb.Dataset = None,
     ) -> None:
         """_summary_
         LGBM Train 함수
@@ -177,15 +180,19 @@ class LGBM:
             valid (pd.DataFrame): valid dataset
             y_valid (pd.Series): valid label
         """
+        valid_sets = lgb_train
+        if lgb_valid:
+            valid_sets.append(lgb_valid)
         self.model = lgb.train(
             self.param,
             lgb_train,
-            valid_sets=(lgb_train, lgb_valid),
+            valid_sets=valid_sets,
             callbacks=[lgb.early_stopping(50, True)],
             verbose_eval=50,
         )
-        self.best_validation_score = self.model.best_score["valid_1"]["auc"]
-        self.feature_importance = self.model.feature_importance()
+        if lgb_valid:
+            self.best_validation_score = self.model.best_score["valid_1"]["auc"]
+            self.feature_importance = self.model.feature_importance()
 
     def load_model(
         self,
