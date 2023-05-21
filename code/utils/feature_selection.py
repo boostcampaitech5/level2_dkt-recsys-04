@@ -9,12 +9,14 @@ import lightgbm as lgb
 import sys
 
 sys.path.append(r"/opt/ml/level2_dkt-recsys-04/code/")  # 절대경로 추가 (추후에 수정해주어야 함)
+sys.path.append(
+    r"/opt/ml/level2_dkt-recsys-04/code/catboost/"
+)  # 절대경로 추가 (추후에 수정해주어야 함)
 
 from lgbm.lgbm_util.utils import get_logger, Setting, logging_conf
-from lgbm.lgbm_util.datasets import (
-    feature_engineering,
-    custom_train_test_split,
-)
+from lgbm.lgbm_util.datasets import custom_train_test_split
+from catboost_util.datasets import feature_engineering
+
 from lgbm.lgbm_util.args import train_parse_args
 
 from tqdm import tqdm
@@ -22,8 +24,12 @@ from sklearn.inspection import permutation_importance
 from sklearn.metrics import make_scorer
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
-
+from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import Bunch
+
+import time
+from datetime import datetime
+
 import argparse
 
 import warnings
@@ -32,6 +38,40 @@ warnings.filterwarnings("ignore")
 
 setting = Setting()
 logger = get_logger(logging_conf)
+
+FEATS = [
+    "calculate_cumulative_stats_by_time",
+    "calculate_overall_accuracy_by_testID",
+    "calculate_overall_accuracy_by_KnowledgeTag",
+    # # 시간 칼럼을 사용하는 FE
+    "calculate_solve_time_column",  # Time 관련 Feature Engineering할 때 필수!
+    "check_answer_at_time",
+    "calculate_total_time_per_user",
+    "calculate_past_correct_answers_per_user",
+    "calculate_future_correct_answers_per_user",
+    "calculate_past_correct_attempts_per_user",
+    "calculate_past_solved_problems_per_user",
+    "calculate_past_average_accuracy_per_user",
+    "calculate_past_average_accuracy_current_problem_per_user",
+    "calculate_rolling_mean_time_last_3_problems_per_user",
+    # "calculate_mean_and_stddev_per_user", # 오류가 많아서 스킵
+    "calculate_median_time_per_user",
+    "calculate_problem_solving_time_per_user",
+    "calculate_accuracy_by_time_of_day",
+    "calculate_user_activity_time_preference",
+    "calculate_normalized_time_per_user",
+    "calculate_relative_time_spent_per_user",
+    "calculate_time_cut_column",
+    # latent feature
+    "calculate_items_svd_latent",
+    "calculate_times_nmf_latent",
+    "calculate_users_pca_latent",
+    "calculate_items_pca_latent",
+    "calculate_times_pca_latent",
+    "calculate_times_lda_latent",
+    "caculate_item_latent_dirichlet_allocation",  # 50초 걸림
+    "caculate_user_latent_dirichlet_allocation",  # 50초 걸림
+]
 
 
 def custom_label_split(df: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
@@ -103,7 +143,12 @@ class FeatureSelector:
         dataframe = pd.read_csv(csv_file_path)
 
         ######################## Feature Engineering
-        dataframe = feature_engineering(dataframe)
+        dataframe = feature_engineering(args.feats, dataframe)
+
+        ######################## ValueError 해결을 위한 전처리
+        print("--------------- Data Preprocessing ---------------")
+        cate_cols = ["assessmentItemID", "testId"]
+        dataframe = self.preprocessing(dataframe, cate_cols)
 
         ########################   Data Split
         print("--------------- Data Split   ---------------")
@@ -139,7 +184,7 @@ class FeatureSelector:
 
     def select_features(self):
         if self.args.importance_type == "permutation":
-            print("--------------- Permutation...   ---------------")
+            print("--------------- Start Permutation   ---------------")
             importances = self.perm_importance(self.model, self.train, self.y_train)
             sort_index = list(importances.importances_mean.argsort())
             print("--------------- Permutation Done!   ---------------")
@@ -195,6 +240,40 @@ class FeatureSelector:
             )
 
         print("--------------- Saved Result ---------------")
+
+    def preprocessing(self, dataframe, cate_cols):
+        # LabelEncoding
+        for col in cate_cols:
+            le = LabelEncoder()
+            # For UNKNOWN class
+            a = dataframe[col].unique().tolist() + ["unknown"]
+            le.fit(a)
+
+            # cate_cols 는 범주형이라고 가정
+            dataframe[col] = dataframe[col].astype(str)
+            encoded_values = le.transform(dataframe[col])
+            dataframe[col] = encoded_values
+
+        def convert_time(s: str):
+            timestamp = time.mktime(
+                datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple()
+            )
+            return int(timestamp)
+
+        dataframe["Timestamp"] = dataframe["Timestamp"].map(lambda x: str(x))
+        dataframe["Timestamp"] = dataframe["Timestamp"].apply(convert_time)
+
+        try:
+            dataframe["time_cut_enc"] = dataframe["time_cut_enc"].astype(int)
+        except:
+            print("'time_cut_enc' column not in dataframe.")
+            pass
+
+        for col in dataframe.columns:
+            if str(col).startswith('index'):
+                dataframe.drop(col, axis=1, inplace=True)
+
+        return dataframe
 
     def perm_importance(self, model, train_x, train_y):
         importances = permutation_importance(
@@ -261,6 +340,12 @@ if __name__ == "__main__":
         choices=["permutation", "model"],
         type=str,
         help="type of importance",
+    )
+    parser.add_argument(
+        "--feats",
+        default=FEATS,
+        type=list,
+        help="feats",
     )
 
     args = parser.parse_args()
