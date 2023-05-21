@@ -9,6 +9,12 @@
     python inference.py --model=CatBoost --model_name={prefix}_catboost.cbm # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --model_dir=./models/
 ```
 
+```bash
+    cd code/boosting & poetry install
+    python train_cv.py --model=CatBoost # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --num_iterations=1000 --lr=0.1 --depth=6 --model_dir=./models/
+    python inference_cv.py --model=CatBoost --model_name={save_time} # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --model_dir=./models/
+```
+
 ### Directory Structure
 ```bash
     .
@@ -38,7 +44,9 @@
     |       `-- {prefix}_{model}.csv
     |-- poetry.lock                                        # poetry
     |-- pyproject.toml                                     # poetry
+    |-- train_cv.py                                        # train_cv model
     |-- train.py                                           # train model
+    |-- inference_cv.py                                    # inference_cv model
     `-- inference.py                                       # inference model
 ```
 
