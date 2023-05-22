@@ -71,11 +71,14 @@ def main(args: argparse.Namespace):
 
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")
+    setting.make_dir(args.output_dir)
+    setting.make_dir(os.path.join(args.output_dir, args.model))
     filename = os.path.join(
         args.output_dir,
         args.model,
         args.model_name + f"_{total_auc}_{args.model.lower()}_cv_inference.csv",
     )
+
     setting.save_predict(filename=filename, predict=total_preds)
 
 
