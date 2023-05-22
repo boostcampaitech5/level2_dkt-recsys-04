@@ -1,7 +1,6 @@
 {
     "name": "LastQueryTransformerRNN",
     "n_gpu": 1,
-
     "arch": {
         "type": "LastQueryModel",
         "args": {
@@ -10,50 +9,46 @@
     },
     "data_loader": {
         "type": "SequentialDataset",
-        "args":{
+        "args": {
             "data_dir": "/opt/ml/input/data/",
             "batch_size": 128,
-            "shuffle": true,
+            "shuffle": false,
             "validation_split": 0.1,
             "num_workers": 0,
-
-            "max_seq_len": 20,
+            "max_seq_len": 500,
             "is_train": true,
             "asset_dir": "asset/"
-            
         }
     },
     "optimizer": {
         "type": "Adam",
-        "args":{
-            "lr": 0.0005,
+        "args": {
+            "lr": 0.0001,
             "weight_decay": 0,
             "amsgrad": true
         }
     },
     "loss": "BCEwithLL",
     "metrics": [
-        "auc_score", "accuracy"
+        "auc_score",
+        "accuracy"
     ],
     "lr_scheduler": {
         "type": "ReduceLROnPlateau",
         "args": {
-            "patience": 10, 
-            "factor": 0.5, 
-            "mode":"max", 
-            "verbose":true
+            "patience": 10,
+            "factor": 0.5,
+            "mode": "max",
+            "verbose": true
         }
     },
     "trainer": {
-        "epochs": 100,
-
+        "epochs": 500,
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
-        
         "monitor": "max val_auc_score",
-        "early_stop": 30,
-
+        "early_stop": 100,
         "tensorboard": true
     }
 }
