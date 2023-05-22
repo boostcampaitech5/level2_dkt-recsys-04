@@ -216,7 +216,7 @@ def main(args: argparse.Namespace):
     ######################## SAVE CONFIG
     print("\n--------------- Save Config   ---------------")
     print(
-        f"Inferencing CV : python inference.py --model={args.model} --model_name={setting.save_time}"
+        f"Inferencing CV : python inference_cv.py --model={args.model} --model_name={setting.save_time}"
     )
     setting.save_config(args, np.mean(cv_scores["AUC"]), cv_info)
 
