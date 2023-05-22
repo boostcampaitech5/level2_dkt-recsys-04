@@ -1,31 +1,36 @@
 {
     "name": "LastQueryTransformerRNN",
     "n_gpu": 1,
-
     "arch": {
         "type": "LastQueryModel",
         "args": {
-            "clip_grad": 10
+            "clip_grad": 10,
+            "hidden_dim": 64,
+            "n_heads": 1,
+            "max_seq_len": 20,
+            "drop_out": 0.1,
+            "n_layers": 1
         }
     },
     "data_loader": {
         "type": "SequentialDataset",
-        "args":{
+        "args": {
             "data_dir": "/opt/ml/input/data/",
             "batch_size": 128,
-            "shuffle": true,
+            "shuffle": false,
             "validation_split": 0.1,
             "num_workers": 0,
-
+            "shuffle_n": 2,
+            "augmentation": true,
             "max_seq_len": 20,
             "is_train": true,
-            "asset_dir": "asset/"
-            
+            "asset_dir": "asset/",
+            "stride": 10
         }
     },
     "optimizer": {
         "type": "Adam",
-        "args":{
+        "args": {
             "lr": 0.0005,
             "weight_decay": 0,
             "amsgrad": true
@@ -33,27 +38,25 @@
     },
     "loss": "BCEwithLL",
     "metrics": [
-        "auc_score", "accuracy"
+        "auc_score",
+        "accuracy"
     ],
     "lr_scheduler": {
         "type": "ReduceLROnPlateau",
         "args": {
-            "patience": 10, 
-            "factor": 0.5, 
-            "mode":"max", 
-            "verbose":true
+            "patience": 10,
+            "factor": 0.5,
+            "mode": "max",
+            "verbose": true
         }
     },
     "trainer": {
         "epochs": 100,
-
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
-        
         "monitor": "max val_auc_score",
         "early_stop": 30,
-
         "tensorboard": true
     }
 }

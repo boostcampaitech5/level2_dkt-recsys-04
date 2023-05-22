@@ -212,7 +212,7 @@ class Saint(nn.Module):
         # self.embedding_elapsed_test = nn.Embedding(self.args.n_elapsed_test + 1, self.hidden_dim // 3)
 
         # encoder combination projection
-        self.enc_comb_proj = nn.Linear((self.hidden_dim // 3) * 5, self.hidden_dim)
+        self.enc_comb_proj = nn.Linear((self.hidden_dim // 3) * 4, self.hidden_dim)
 
         # DECODER embedding
         # interaction은 현재 correct으로 구성되어있다. correct(1, 2) + padding(0)
@@ -279,10 +279,10 @@ class Saint(nn.Module):
         embed_test = self.embedding_test(test)
         embed_question = self.embedding_question(question)
         embed_tag = self.embedding_tag(tag)
-
+        embed_elapsed_question = self.embedding_elapsed_question(elapsed_question)
         embed_interaction = self.embedding_interaction(interaction)
 
-        embed_dec = torch.cat([embed_test, embed_question, embed_tag, embed_interaction], 2)
+        embed_dec = torch.cat([embed_test, embed_question, embed_tag, embed_elapsed_question, embed_interaction], 2)
 
         embed_dec = self.dec_comb_proj(embed_dec)
 
