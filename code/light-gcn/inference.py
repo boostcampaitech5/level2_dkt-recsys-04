@@ -29,9 +29,7 @@ def main(args):
     ########################   LOAD Model
     print("--------------- LightGCN Load Model ---------------")
     logger.info("Loading Model ...")
-    weight: str = os.path.join(
-        args.model_dir, args.model_name
-    )  # best_model.pt 파일 load
+    weight: str = os.path.join(args.model_dir, args.model_name)  # best_model.pt 파일 load
     model: torch.nn.Module = models.build(
         n_node=n_node,
         embedding_dim=args.hidden_dim,

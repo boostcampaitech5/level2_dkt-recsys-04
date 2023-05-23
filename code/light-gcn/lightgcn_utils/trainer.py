@@ -44,7 +44,6 @@ def run(
 
     logger.info(f"Training Started : n_epochs={n_epochs}")
     best_auc, best_epoch = 0, -1
-
     for e in range(n_epochs):
         logger.info("Epoch: %s", e)
         # TRAIN
@@ -64,12 +63,8 @@ def run(
             )
         )
 
-        if (
-            auc > best_auc
-        ):  # 현재 에폭에서의 AUC가 이전까지의 최고 AUC보다 큰 경우, 최적의 모델 가중치로 업데이트
-            logger.info(
-                "Best model updated AUC from %.4f to %.4f", best_auc, auc
-            )
+        if auc > best_auc:  # 현재 에폭에서의 AUC가 이전까지의 최고 AUC보다 큰 경우, 최적의 모델 가중치로 업데이트
+            logger.info("Best model updated AUC from %.4f to %.4f", best_auc, auc)
             best_auc, best_epoch = auc, e
             torch.save(
                 obj={"model": model.state_dict(), "epoch": e + 1},
@@ -104,9 +99,7 @@ def train(model: nn.Module, train_data: dict, optimizer: torch.optim.Optimizer):
     loss.backward()
     optimizer.step()
 
-    logger.info(
-        "TRAIN AUC : %.4f ACC : %.4f LOSS : %.4f", auc, acc, loss.item()
-    )
+    logger.info("TRAIN AUC : %.4f ACC : %.4f LOSS : %.4f", auc, acc, loss.item())
     return auc, acc, loss
 
 
@@ -133,7 +126,5 @@ def inference(model: nn.Module, data: dict, output_dir: str):
     pred = pred.detach().cpu().numpy()
     os.makedirs(name=output_dir, exist_ok=True)
     write_path = os.path.join(output_dir, "lightgcn.csv")
-    pd.DataFrame({"prediction": pred}).to_csv(
-        path_or_buf=write_path, index_label="id"
-    )
+    pd.DataFrame({"prediction": pred}).to_csv(path_or_buf=write_path, index_label="id")
     logger.info("Successfully saved submission as %s", write_path)
