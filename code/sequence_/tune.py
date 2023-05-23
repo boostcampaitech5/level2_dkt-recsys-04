@@ -93,6 +93,7 @@ def objective_function(space):
 
     return -1 * best_auc  # 목적 함수 값을 -auc로 설정 => 목적 함수 최소화 => auc 최대화
 
+
 def main(args, train_loader, valid_loader):
     # seed 설정
     seed_everything(args.seed)
@@ -133,14 +134,14 @@ def main(args, train_loader, valid_loader):
     print("best:", best)
 
     # 하이퍼파라미터 원상복구
-    args.max_seq_len = args_origin.max_seq_len
-    args.hidden_dim = args_origin.hidden_dim
-    args.n_layers = args_origin.n_layers
-    args.n_heads = args_origin.n_heads
-    args.dropout = args_origin.dropout
-    args.lr = args_origin.lr
-    args.window = args_origin.window
-    args.stride = args_origin.stride
+    # args.max_seq_len = args_origin["max_seq_len"]
+    # args.hidden_dim = args_origin["hidden_dim"]
+    # args.n_layers = args_origin["n_layers"]
+    # args.n_heads = args_origin["n_heads"]
+    # args.dropout = args_origin["dropout"]
+    # args.lr = args_origin["lr"]
+    # args.window = args_origin["window"]
+    # args.stride = args_origin["stride"]
 
     # Save
     df = trials_to_df(trials, space, best)
