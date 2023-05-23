@@ -20,6 +20,7 @@
             "shuffle": false,
             "validation_split": 0.1,
             "num_workers": 0,
+
             "shuffle_n": 2,
             "augmentation": true,
             "max_seq_len": 20,
@@ -31,7 +32,8 @@
     "optimizer": {
         "type": "Adam",
         "args": {
-            "lr": 0.0005,
+
+            "lr": 0.0001,
             "weight_decay": 0,
             "amsgrad": true
         }
@@ -51,11 +53,13 @@
         }
     },
     "trainer": {
+
         "epochs": 100,
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
         "monitor": "max val_auc_score",
+
         "early_stop": 30,
         "tensorboard": true
     }
