@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument("--n_layers", default=1, type=int, help="")
     parser.add_argument("--alpha", default=None, type=float, help="")
 
-    parser.add_argument("--n_epochs", default=30, type=int, help="")
+    parser.add_argument("--n_epochs", default=5, type=int, help="")
     parser.add_argument("--lr", default=0.001, type=float, help="")
     parser.add_argument("--model_dir", default="./models/", type=str, help="")
     parser.add_argument(

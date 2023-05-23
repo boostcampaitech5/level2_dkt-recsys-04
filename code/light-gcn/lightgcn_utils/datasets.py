@@ -67,7 +67,7 @@ def indexing_data(data: pd.DataFrame) -> dict:  # user/item ID를 node index와 
         sorted(list(set(data.userID))),
         sorted(list(set(data.assessmentItemID))),
     )
-    n_user, n_item = len(userid), len(itemid)
+    n_user = len(userid)
 
     userid2index = {v: i for i, v in enumerate(userid)}
     itemid2index = {v: i + n_user for i, v in enumerate(itemid)}
