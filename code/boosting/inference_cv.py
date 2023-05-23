@@ -72,6 +72,7 @@ def main(args: argparse.Namespace):
         args.model,
         args.model_name + f"_{total_auc}_{args.model.lower()}_cv_inference.csv",
     )
+
     setting.save_predict(filename=filename, predict=total_preds)
 
 
