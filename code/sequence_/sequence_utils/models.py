@@ -166,10 +166,8 @@ class Bert(BaseModel):
         # Bert
         encoded_layers = self.encoder(inputs_embeds=X, attention_mask=mask)
 
-        # Bert
-        encoded_layers = self.encoder(inputs_embeds=X, attention_mask=mask)
         out = encoded_layers[0]
-        out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
         preds = self.activation(out).view(batch_size, -1)
 
@@ -289,7 +287,7 @@ class Saint(BaseModel):
         )
 
         out = out.permute(1, 0, 2)
-        out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
 
         preds = self.activation(out).view(batch_size, -1)
@@ -313,7 +311,7 @@ class Feed_Forward_block(nn.Module):
 
 class LastQuery(BaseModel):
     def __init__(self, args):
-        super().__init__()
+        super().__init__(args)
         # 기존 keetar님 솔루션에서는 Positional Embedding은 사용되지 않습니다
         # self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
 
@@ -376,7 +374,7 @@ class LastQuery(BaseModel):
         out, hidden = self.lstm(out, hidden)
 
         ###################### DNN #####################
-        out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
 
         preds = self.activation(out).view(batch_size, -1)
