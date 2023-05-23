@@ -8,9 +8,11 @@ import lightgbm as lgb
 
 import sys
 
-sys.path.append(r"/opt/ml/level2_dkt-recsys-04/code/")  # 절대경로 추가 (추후에 수정해주어야 함)
 sys.path.append(
-    r"/opt/ml/level2_dkt-recsys-04/code/catboost/"
+    r"/opt/ml/repogitory/level2_dkt-recsys-04/code/"
+)  # 절대경로 추가 (추후에 수정해주어야 함)
+sys.path.append(
+    r"/opt/ml/repogitory/level2_dkt-recsys-04/code/catboost/"
 )  # 절대경로 추가 (추후에 수정해주어야 함)
 
 from lgbm.lgbm_util.utils import get_logger, Setting, logging_conf
@@ -270,7 +272,7 @@ class FeatureSelector:
             pass
 
         for col in dataframe.columns:
-            if str(col).startswith('index'):
+            if str(col).startswith("index"):
                 dataframe.drop(col, axis=1, inplace=True)
 
         return dataframe

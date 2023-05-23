@@ -16,6 +16,10 @@ lightgbm = "^3.3.5"
 tqdm = "^4.65.0"
 black = "^23.3.0"
 
+[tool.poetry.group.dev.dependencies]
+lightgbm = "^3.3.5"
+catboost = "^1.2"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

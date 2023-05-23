@@ -1,8 +1,44 @@
+import time
+from datetime import datetime
 import numpy as np
 import pandas as pd
 from typing import Tuple
 import random
 from .feature_engineering import FeatureEnginnering
+from sklearn.preprocessing import LabelEncoder
+
+
+def preprocessing(dataframe: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
+    cate_cols = ["assessmentItemID", "testId"]
+    # LabelEncoding
+    for col in cate_cols:
+        le = LabelEncoder()
+        # For UNKNOWN class
+        a = dataframe[col].unique().tolist() + ["unknown"]
+        le.fit(a)
+
+        # cate_cols 는 범주형이라고 가정
+        dataframe[col] = dataframe[col].astype(str)
+        encoded_values = le.transform(dataframe[col])
+        dataframe[col] = encoded_values
+
+    def convert_time(s: str):
+        timestamp = time.mktime(
+            datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple()
+        )
+        return int(timestamp)
+
+    dataframe["Timestamp"] = dataframe["Timestamp"].map(lambda x: str(x))
+    dataframe["Timestamp"] = dataframe["Timestamp"].apply(convert_time)
+    cate_cols.append("Timestamp")
+    try:
+        dataframe["time_cut_enc"] = dataframe["time_cut_enc"].astype(int)
+        cate_cols.append("time_cut_enc")
+    except Exception:
+        print("'time_cut_enc' column not in dataframe.")
+        pass
+
+    return cate_cols, dataframe
 
 
 def feature_engineering(feats: list, df: pd.DataFrame) -> pd.DataFrame:
@@ -33,7 +69,9 @@ def custom_train_test_split(
     Returns:
         - Tuple[pd.DataFrame, pd.DataFrame]: Train , Valid Data Set
     """
-    users = list(zip(df["userID"].value_counts().index, df["userID"].value_counts()))
+    users = list(
+        zip(df["userID"].value_counts().index, df["userID"].value_counts())
+    )
     random.shuffle(users)
 
     max_train_data_len = ratio * len(df)
@@ -65,12 +103,13 @@ def custom_label_split(df: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
     """
     y = df["answerCode"]
     X = df.drop(["answerCode"], axis=1)
-
     return y, X
 
 
 # custom => 아직 사용 X
-def custom_kfold_split(df: pd.DataFrame, n_splits: int = 5) -> Tuple[list, list]:
+def custom_kfold_split(
+    df: pd.DataFrame, n_splits: int = 5
+) -> Tuple[list, list]:
     """_summary_
 
     Args:
@@ -91,7 +130,9 @@ def custom_kfold_split(df: pd.DataFrame, n_splits: int = 5) -> Tuple[list, list]
     #     train, tmp = custom_train_test_split(tmp, ratio=ratio)
     # test = tmp[tmp["userID"] != tmp["userID"].shift(-1)]
 
-    users = list(zip(df["userID"].value_counts().index, df["userID"].value_counts()))
+    users = list(
+        zip(df["userID"].value_counts().index, df["userID"].value_counts())
+    )
     random.shuffle(users)
 
     max_train_data_len = len(df) // n_splits

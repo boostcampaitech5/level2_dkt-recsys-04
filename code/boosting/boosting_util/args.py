@@ -37,7 +37,15 @@ FEATS = [
 def train_parse_args() -> argparse.Namespace:
     """ """
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=[
+            "CatBoost",
+            "LGBM",
+        ],
+        help="학습 및 예측할 모델을 선택할 수 있습니다.",
+    )
     parser.add_argument("--seed", default=42, type=int, help="seed")
     parser.add_argument(
         "--use_cuda_if_available", default=True, type=bool, help="Use GPU"
@@ -52,21 +60,81 @@ def train_parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--num_iterations", default=1000, type=int, help="num_iterations"
     )
+    parser.add_argument(
+        "--num_boost_round", default=100, type=int, help="num_boost_round"
+    )
+    parser.add_argument("--num_leaves", default=31, type=int, help="num_leaves")
     parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
     parser.add_argument("--depth", default=6, type=int, help="depth")
-    parser.add_argument("--use_kfold", default=True, type=bool, help="Use K-Fold CV")
     parser.add_argument(
-        "--use_skfold", default=False, type=bool, help="Use Stratified K-Fold CV"
+        "--feats",
+        default=FEATS,
+        type=list,
+        help="feats",
+    )
+
+    args = parser.parse_args()
+
+    return args
+
+
+def cv_parse_args() -> argparse.Namespace:
+    """ """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=[
+            "CatBoost",
+            "LGBM",
+        ],
+        help="학습 및 예측할 모델을 선택할 수 있습니다.",
+    )
+    parser.add_argument("--seed", default=42, type=int, help="seed")
+    parser.add_argument(
+        "--use_cuda_if_available", default=True, type=bool, help="Use GPU"
+    )
+
+    parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="")
+    parser.add_argument("--model_dir", default="./models/", type=str, help="model dir")
+    parser.add_argument(
+        "--output_dir", default="./outputs/", type=str, help="output dir"
+    )
+
+    parser.add_argument(
+        "--num_iterations", default=1000, type=int, help="num_iterations"
+    )
+    parser.add_argument(
+        "--num_boost_round", default=100, type=int, help="num_boost_round"
+    )
+    parser.add_argument("--use_kfold", default=False, type=bool, help="Use K-Fold CV")
+    parser.add_argument(
+        "--use_skfold",
+        default=False,
+        type=bool,
+        help="Use Stratified K-Fold CV",
     )
     parser.add_argument(
         "--use_tscv", default=False, type=bool, help="Use Time Series CV"
     )
     parser.add_argument(
-        "--use_btscv", default=False, type=bool, help="Use Blocking Time Series CV"
+        "--use_btscv",
+        default=False,
+        type=bool,
+        help="Use Blocking Time Series CV",
+    )
+    parser.add_argument(
+        "--user_based_kfold",
+        default=True,
+        type=bool,
+        help="User User Based K-Fold Crossvalidation Strategy",
     )
     parser.add_argument(
         "--n_splits", default=5, type=int, help="n_splits in Cross-Validation"
     )
+    parser.add_argument("--num_leaves", default=31, type=int, help="num_leaves")
+    parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
+    parser.add_argument("--depth", default=6, type=int, help="depth")
     parser.add_argument(
         "--feats",
         default=FEATS,
@@ -82,7 +150,15 @@ def train_parse_args() -> argparse.Namespace:
 def inference_parse_args() -> argparse.Namespace:
     """ """
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=[
+            "CatBoost",
+            "LGBM",
+        ],
+        help="학습 및 예측할 모델을 선택할 수 있습니다.",
+    )
     parser.add_argument("--seed", default=42, type=int, help="seed")
 
     parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="")
