@@ -16,6 +16,7 @@ from sequence_utils.models import Bert
 from sequence_utils.models import Saint
 # from mission_utils.models import FixupEncoder
 from sequence_utils.models import LastQuery
+from sequence_utils.models import LSTMATNN
 
 import numpy as np
 
@@ -66,8 +67,10 @@ def get_model(args):
         model = LastQuery(args)
     if args.model == "saint":
         model = Saint(args)
-    if args.model == "tfixup":
-        model = FixupEncoder(args)
+    if args.model == "lstm_attn":
+        model = LSTMATNN(args)
+    # if args.model == "tfixup":
+    #     model = FixupEncoder(args)
 
     model.to(args.device)
 
