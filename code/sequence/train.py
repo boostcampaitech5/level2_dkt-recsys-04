@@ -26,6 +26,7 @@ def main(config):
 
     # setup data_loader instances
     dataset = config.init_obj("data_loader", module_data)
+    
     data_loader = BaseDataLoader(
         dataset=dataset,
         batch_size=config["data_loader"]["args"]["batch_size"],

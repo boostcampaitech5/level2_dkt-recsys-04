@@ -4,8 +4,10 @@ import torch.nn.functional as F
 from transformers.models.bert.modeling_bert import BertConfig, BertEncoder, BertModel
 
 import numpy as np
+import math
 
 from base import BaseSequentialModel
+from utils.util import prepare_device
 
 import os
 
@@ -83,14 +85,14 @@ class LSTMATTN(BaseSequentialModel):
 class BERT(BaseSequentialModel):
     def __init__(
         self,
-        hidden_dim: int = 64,
-        n_layers: int = 2,
-        n_tests: int = 1538,
-        n_questions: int = 9455,
-        n_tags: int = 913,
-        n_heads: int = 2,
-        drop_out: float = 0.1,
-        max_seq_len: float = 20,
+        hidden_dim: int,
+        n_layers: int,
+        n_tests: int,
+        n_questions: int,
+        n_tags: int,
+        n_heads: int,
+        drop_out: float,
+        max_seq_len: float,
         **kwargs
     ):
         super().__init__(hidden_dim, n_layers, n_tests, n_questions, n_tags)
@@ -118,7 +120,7 @@ class BERT(BaseSequentialModel):
         return out
 
 
-### LastQuery Transformer RNN
+### Last Query Transformer RNN
 class FeedForwardBlock(nn.Module):
     """
     out = Relu(M_out * w1 + b1) * w2 + b2
@@ -133,112 +135,109 @@ class FeedForwardBlock(nn.Module):
         return self.layer2(F.relu(self.layer1(ffn_in)))
 
 
-class LastQueryModel(nn.Module):
+class LastQueryModel(BaseSequentialModel):
     def __init__(
         self,
-        hidden_dim: int = 128,
-        n_layers: int = 1,
-        n_questions: int = 9455,
-        n_tags: int = 913,
-        n_elapsed_questions: int = 14066,
-        n_elapsed_tests: int = 14705,
-        n_heads: int = 1,
-        drop_out: float = 0.1,
-        max_seq_len: float = 20,
+        hidden_dim: int,
+        n_heads: int,
+        drop_out: float,
+        max_seq_len: int,
+        n_layers: int,
         use_lstm: bool = True,
         **kwargs
     ):
-        super().__init__()
-        self.max_seq_len = max_seq_len
+        super(LastQueryModel, self).__init__(hidden_dim, n_layers, drop_out)
 
-        self.n_questions = len(np.load(os.path.join("asset/", "assessmentItemID_classes.npy")))
-        self.n_tests = len(np.load(os.path.join("asset/", "testId_classes.npy")))
-        self.n_tags = len(np.load(os.path.join("asset/", "KnowledgeTag_classes.npy")))
-        self.n_elapsed_questions = len(np.load(os.path.join("asset/", "elapsed_question_classes.npy")))
-        self.n_elapsed_tests = len(np.load(os.path.join("asset/", "elapsed_test_classes.npy")))
+        # n_questions: 9455
+        # n_test: 1538
+        # n_tags: 913
+        # elapsed_question: 14067
+        # elapsed_test: 14706
 
-        # self.n_questions = n_questions
-        # self.n_tests = n_tests
-        # self.n_tags = n_tags
-        # self.n_elapsed_questions = n_elapsed_question
-        # self.n_elapsed_tests = n_elapsed_tests
-
-        # self.embedding_correct = nn.Embedding(2, embedding_dim = hidden_dim)
-        self.embedding_interaction = nn.Embedding(3, embedding_dim=hidden_dim)
-        self.embedding_test = nn.Embedding(self.n_tests + 1, embedding_dim=hidden_dim)
-        self.embedding_question = nn.Embedding(self.n_questions + 1, embedding_dim=hidden_dim)
-        self.embedding_tag = nn.Embedding(self.n_tags + 1, embedding_dim=hidden_dim)
-        self.embedding_elapsed_question = nn.Embedding(self.n_elapsed_questions + 1, embedding_dim=hidden_dim)
-        self.embedding_elapsed_test = nn.Embedding(self.n_elapsed_tests + 1, embedding_dim=hidden_dim)
-
+        self.hidden_dim = hidden_dim
         self.drop_out = drop_out
-        self.multi_en = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=n_heads, dropout=self.drop_out)
-        self.ffn_en = FeedForwardBlock(hidden_dim)
+        self.max_seq_len = max_seq_len
+        self.device, _ = prepare_device(1)
+
+        # Encoder
+        self.query = nn.Linear(in_features=self.hidden_dim, out_features=self.hidden_dim)
+        self.key = nn.Linear(in_features=self.hidden_dim, out_features=self.hidden_dim)
+        self.value = nn.Linear(in_features=self.hidden_dim, out_features=self.hidden_dim)
+
+        self.attn = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=n_heads, dropout=self.drop_out)
+        self.ffn = FeedForwardBlock(hidden_dim)
+        # last query에서는 필요가 없지만 수정을 고려하여서 넣어둠
+        # self.mask = None 
+        
         self.layer_norm1 = nn.LayerNorm(hidden_dim)
         self.layer_norm2 = nn.LayerNorm(hidden_dim)
 
         self.use_lstm = use_lstm
         if self.use_lstm:
-            self.lstm = nn.LSTM(input_size=hidden_dim, hidden_size=hidden_dim, num_layers=n_layers)
+            self.lstm = nn.LSTM(input_size=hidden_dim, 
+                                hidden_size=hidden_dim, 
+                                num_layers=n_layers, 
+                                batch_first=True)
+            
+        # GRU
+        # self.gru = nn.GRU(self.hidden_dim, self.hidden_dim, n_layers, batch_first=True)
 
-        self.out = nn.Linear(in_features=hidden_dim, out_features=1)
+        self.activation = nn.Sigmoid()
 
-    def forward(
-        self, question, test, tag, correct, elapsed_question, elapsed_test, mask, interaction, first_block=True
-    ):
-        first_block = True
-        if first_block:
-            embed_interaction = self.embedding_interaction(interaction.int())
-            embed_interaction = nn.Dropout(self.drop_out)(embed_interaction)
+    def init_hidden(self, batch_size):
+        h = torch.zeros(
+            self.n_layers,
+            batch_size,
+            self.hidden_dim)
+        h = h.to(self.device)
 
-            embed_question = self.embedding_question(question.int())
-            embed_question = nn.Dropout(self.drop_out)(embed_question)
+        c = torch.zeros(
+            self.n_layers,
+            batch_size,
+            self.hidden_dim)
+        c = c.to(self.device)
 
-            embed_tag = self.embedding_tag(tag.int())
-            embed_tag = nn.Dropout(self.drop_out)(embed_tag)
+        return (h, c)
+ 
+    def forward(self, input):
+        embed, batch_size = super().forward(input)
 
-            embed_elapsed_question = self.embedding_elapsed_question(elapsed_question.int())
-            embed_elapsed_question = nn.Dropout(self.drop_out)(embed_elapsed_question)
+        q = self.query(embed).permute(1, 0, 2)  # transpose 와 비슷한 역할, contiguous 텐서가 아니어도 작동함
+        q = self.query(embed)[:, -1:, :].permute(1, 0, 2)
 
-            embed_elapsed_test = self.embedding_elapsed_test(elapsed_test.int())
-            embed_elapsed_test = nn.Dropout(self.drop_out)(embed_elapsed_test)
+        k = self.key(embed).permute(1, 0, 2)
+        v = self.value(embed).permute(1, 0, 2)
 
-            embed_test = self.embedding_test(test.int())
-            embed_test = nn.Dropout(self.drop_out)(embed_test)
+        ## attention
+        # last query only
+        out, attn_wt = self.attn(q, k, v)
 
-            # out = embed_correct + embed_question + embed_tag + embed_elapsed_question + embed_elapsed_test
-            out = (
-                embed_interaction
-                + embed_question
-                + embed_test
-                + embed_tag
-                + embed_elapsed_question
-                + embed_elapsed_test
-            )
+        ## residual + layer norm
+        out = out.permute(1, 0, 2)
+        out = embed + out
+        out = self.layer_norm1(out)
 
-        else:
-            out = embed_question
+        ## feed forward network
+        out = self.ffn(out)
 
-        out = out.permute(1, 0, 2)  # transpose 와 비슷한 역할, contiguous 텐서가 아니어도 작동함
-
-        out = self.layer_norm1(out)  # Layer norm
-        skip_out = out
-
-        out, attn_wt = self.multi_en(out[-1:, :, :], out, out)  # Q, K, V
-        out = out + skip_out  # skip connection
-
-        if self.use_lstm:
-            out, _ = self.lstm(out)
-            out = out[-1:, :, :]
-
-        # feed forward
-        out = out.permute(1, 0, 2)  # (b, n, d)
+        ## residual + layer norm
+        out = embed + out
         out = self.layer_norm2(out)
-        skip_out = out
-        out = self.ffn_en(out)
-        out = out + skip_out
 
-        out = self.out(out)
+        ## LSTM
+        hidden = self.init_hidden(batch_size)
+        
+        if self.use_lstm:
+            out, hidden = self.lstm(out, hidden)
 
-        # return out.squeeze(-1), 0
-        return out.squeeze(-1).view(-1)
+        # GRU
+        # out, hidden = self.gru(out, hidden[0])
+
+        ## DNN
+        out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = self.fc(out)
+
+        preds = self.activation(out).view(batch_size, -1)
+
+        print(preds)        
+        return preds

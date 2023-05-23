@@ -96,32 +96,36 @@ class SequentialDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        data_dir,
-        batch_size,
-        shuffle,
-        validation_split,
-        num_workers,
+        data_dir: str,
+        batch_size: int,
+        shuffle: bool,
+        validation_split: float,
+        num_workers: int,
+        shuffle_n: int,
+        augmentation: bool,
         max_seq_len: int,
         is_train: bool = True,
         asset_dir: str = "asset/",
+        stride: int = 10,
     ):
         self.data_dir = data_dir
         self.asset_dir = asset_dir
         self.max_seq_len = max_seq_len
+        self.stride = stride
+        self.shuffle = shuffle
+        self.shuffle_n = shuffle_n
 
         preprocess = Preprocess(data_dir, asset_dir, is_train)
         df = preprocess.get_data()
-
-        self.get_npy()
 
         df = df.sort_values(by=["userID", "Timestamp"], axis=0)
 
         columns = [
             "userID",
+            "answerCode",
             "assessmentItemID",
             "testId",
             "KnowledgeTag",
-            "answerCode",
             "elapsed_question",
             "elapsed_test",
         ]
@@ -130,10 +134,10 @@ class SequentialDataset(torch.utils.data.Dataset):
             .groupby("userID")
             .apply(
                 lambda r: (
+                    r["answerCode"].values,
                     r["assessmentItemID"].values,
                     r["testId"].values,
                     r["KnowledgeTag"].values,
-                    r["answerCode"].values,
                     r["elapsed_question"].values,
                     r["elapsed_test"].values,
                 )
@@ -150,51 +154,78 @@ class SequentialDataset(torch.utils.data.Dataset):
     def __getitem__(self, index: int) -> dict:
         row = self.data[index]
 
-        question, test, tag, correct, elapsed_question, elapsed_test = row[0], row[1], row[2], row[3], row[4], row[5]
-        data = {
-            "question": torch.tensor(question + 1, dtype=torch.int),
-            "test": torch.tensor(test + 1, dtype=torch.int),
-            "tag": torch.tensor(tag + 1, dtype=torch.int),
-            "correct": torch.tensor(correct, dtype=torch.int),
-            "elapsed_question": torch.tensor(elapsed_question + 1, dtype=torch.int),
-            "elapsed_test": torch.tensor(elapsed_test + 1, dtype=torch.int),
-        }
+        correct, question, test, tag,  elapsed_question, elapsed_test = row[0], row[1], row[2], row[3], row[4], row[5]
+        # cate_cols = [col for col in row]
+        cate_cols = [correct, question, test, tag,  elapsed_question, elapsed_test]
 
         # Generate mask: max seq len을 고려하여서 이보다 길면 자르고 아닐 경우 그대로 냅둔다
         seq_len = len(row[0])
+        
         if seq_len > self.max_seq_len:
-            for k, seq in data.items():
-                data[k] = seq[-self.max_seq_len :]
-            mask = torch.ones(self.max_seq_len, dtype=torch.int16)
+            for i, col in enumerate(cate_cols):
+                cate_cols[i] = col[-self.max_seq_len:]
+            mask = np.ones(self.max_seq_len, dtype=np.int16)
         else:
-            for k, seq in data.items():
-                # Pre-padding non-valid sequences
-                tmp = torch.zeros(self.max_seq_len)
-                tmp[self.max_seq_len - seq_len :] = data[k]
-                data[k] = tmp
-            mask = torch.zeros(self.max_seq_len, dtype=torch.int16)
-            mask[-seq_len:] = 1
-        data["mask"] = mask
+            mask = np.zeros(self.max_seq_len, dtype=np.int16)
+            mask[:seq_len] = 1
 
-        # Generate interaction
-        interaction = data["correct"] + 1  # 패딩을 위해 correct값에 1을 더해준다.
-        interaction = interaction.roll(shifts=1)
-        interaction_mask = data["mask"].roll(shifts=1)
-        interaction_mask[0] = 0
-        interaction = (interaction * interaction_mask).to(torch.int64)
-        data["interaction"] = interaction
-        data = {k: v.int() for k, v in data.items()}
+        # mask도 columns 목록에 포함시킴
+        cate_cols.append(mask)
 
-        return data
+        # np.array -> torch.tensor 형변환
+        for i, col in enumerate(cate_cols):
+            cate_cols[i] = torch.tensor(col)
 
-    def get_npy(self):
-        # self.n_questions = n_questions
-        self.n_questions = len(np.load(os.path.join(self.asset_dir, "assessmentItemID_classes.npy")))
-        # self.n_tests = n_tests
-        self.n_tests = len(np.load(os.path.join(self.asset_dir, "testId_classes.npy")))
-        # self.n_tags = n_tags
-        self.n_tags = len(np.load(os.path.join(self.asset_dir, "KnowledgeTag_classes.npy")))
-        # self.n_elapsed_question = n_elapsed_question
-        self.n_elapsed_questions = len(np.load(os.path.join(self.asset_dir, "elapsed_question_classes.npy")))
-        # self.n_elapsed_tests = n_elapsed_tests
-        self.n_elapsed_tests = len(np.load(os.path.join(self.asset_dir, "elapsed_test_classes.npy")))
+        return cate_cols
+    
+    def slidding_window(self, data):
+        window_size = self.max_seq_len
+        stride = self.stride
+
+        def shuffle(shuffle_n, win_data, win_data_size):
+            shuffle_datas = []
+            for i in range(shuffle_n):
+                # shuffle 횟수만큼 window를 랜덤하게 계속 섞어서 데이터로 추가
+                shuffle_data = []
+                random_index = np.random.permutation(win_data_size)
+                for col in win_data:
+                    shuffle_data.append(col[random_index])
+                shuffle_datas.append(tuple(shuffle_data))
+            return shuffle_datas
+
+        augmented_datas = []
+        for row in data:
+            seq_len = len(row[0])
+
+            # 만약 window 크기보다 seq len이 같거나 작으면 augmentation을 하지 않는다
+            if seq_len <= window_size:
+                augmented_datas.append(row)
+            else:
+                total_window = ((seq_len - window_size) // stride) + 1
+                
+                # 앞에서부터 slidding window 적용
+                for window_i in range(total_window):
+                    # window로 잘린 데이터를 모으는 리스트
+                    window_data = []
+                    for col in row:
+                        window_data.append(col[window_i*stride:window_i*stride + window_size])
+
+                    # Shuffle
+                    # 마지막 데이터의 경우 shuffle을 하지 않는다
+                    if self.shuffle and window_i + 1 != total_window:
+                        shuffle_datas = shuffle(self.shuffle_n, window_data, window_size)
+                        augmented_datas += shuffle_datas
+                    else:
+                        augmented_datas.append(tuple(window_data))
+
+                # slidding window에서 뒷부분이 누락될 경우 추가
+                total_len = window_size + (stride * (total_window - 1))
+                if seq_len != total_len:
+                    window_data = []
+                    for col in row:
+                        window_data.append(col[-window_size:])
+                    augmented_datas.append(tuple(window_data))
+
+        return augmented_datas        
+
+                

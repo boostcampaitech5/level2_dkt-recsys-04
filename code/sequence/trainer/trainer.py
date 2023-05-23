@@ -55,42 +55,58 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.train_metrics.reset()
 
+        total_outputs = []
+        total_targets = []
         for batch_idx, batch in enumerate(self.data_loader):
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = self.process_batch(batch)
+            print(batch[0].shape)
 
             self.optimizer.zero_grad()
-            outputs = self.model(**batch)
-            targets = batch["correct"]
+            outputs = self.model(batch)
+            targets = batch[0] # data['correct']
+            index = batch[-1]
 
-            if self.config["arch"]["type"] == "LastQueryModel":
-                targets = targets[:, -1]
-                loss = self.criterion(output=outputs, target=targets.float())
-                loss = torch.mean(loss)
+            loss = self.criterion(outputs, targets)
+            loss = torch.gather(loss, 1, index)
+            loss = torch.mean(loss)
 
-                outputs = sigmoid(outputs)
+########
 
-            else:
-                loss = self.criterion(output=outputs, target=targets.float())
-                loss = loss[:, -1]
-                loss = torch.mean(loss)
+            # if self.config["arch"]["type"] == "LastQueryModel":
+            #     targets = targets[:, -1]
+            #     loss = self.criterion(output=outputs, target=targets.float())
+            #     loss = torch.mean(loss)
 
-                outputs = sigmoid(outputs[:, -1])
-                targets = targets[:, -1]
+            #     # outputs = sigmoid(outputs)
+
+            # else:
+            #     loss = self.criterion(output=outputs, target=targets.float())
+            #     loss = loss[:, -1]
+            #     loss = torch.mean(loss)
+
+            #     # outputs = sigmoid(outputs[:, -1])
+            #     targets = targets[:, -1]
+
+########
 
             loss.backward()
             nn.utils.clip_grad_norm_(self.model.parameters(), self.config["arch"]["args"]["clip_grad"])
 
-            if self.config["lr_scheduler"]["type"] == "linear_warmup":
-                self.lr_scheduler.step()
             self.optimizer.step()
             self.optimizer.zero_grad()
 
+            if self.config["lr_scheduler"]["type"] == "linear_warmup":
+                self.lr_scheduler.step()
+
+            # preidctions
+            outputs = outputs.gather(1, index).view(-1)
+            targets = targets.gather(1, index).view(-1)
+
+            total_outputs.append(outputs.cpu().detach().numpy())
+            total_targets.append(targets.cpu().detach().numpy())
+
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update("loss", loss.item())
-            for met in self.metric_ftns:
-                self.train_metrics.update(
-                    met.__name__, met(outputs.cpu().detach().numpy(), targets.cpu().detach().numpy())
-                )
 
             if batch_idx % self.log_step == 0:
                 # self.logger.info("Training steps: %s Loss: %.4f", step, loss.item())
@@ -101,6 +117,14 @@ class Trainer(BaseTrainer):
 
             if batch_idx == self.len_epoch:
                 break
+
+        total_outputs = np.concatenate(total_outputs)
+        total_targets = np.concatenate(total_targets)
+
+        for met in self.metric_ftns:
+            self.train_metrics.update(
+                met.__name__, met(total_outputs, total_targets)
+            )
 
         log = self.train_metrics.result()
 
@@ -123,30 +147,48 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
 
+        total_outputs = []
+        total_targets = []
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.valid_data_loader):
-                batch = {k: v.to(self.device) for k, v in batch.items()}
+                batch = self.process_batch(batch)
 
-                outputs = self.model(**batch)
-                targets = batch["correct"]
+                outputs = self.model(batch)
+                targets = batch[0]  # data['correct']
+                index = batch[-1]
 
-                if self.config["arch"]["type"] == "LastQueryModel":
-                    outputs = sigmoid(outputs)
-                else:
-                    outputs = sigmoid(outputs[:, -1])
-
-                targets = targets[:, -1]
-
-                loss = self.criterion(outputs, targets.float())
+                loss = self.criterion(outputs, targets)
+                loss = torch.gather(loss, 1, index)
                 loss = torch.mean(loss)
+
+########
+                # if self.config["arch"]["type"] == "LastQueryModel":
+                #     outputs = sigmoid(outputs)
+                # else:
+                #     outputs = sigmoid(outputs[:, -1])
+
+                # targets = targets[:, -1]
+
+                # loss = self.criterion(outputs, targets.float())
+########
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, "valid")
                 self.valid_metrics.update("loss", loss.item())
-                for met in self.metric_ftns:
-                    self.valid_metrics.update(
-                        met.__name__, met(outputs.cpu().detach().numpy(), targets.cpu().detach().numpy())
-                    )
-                # self.writer.add_image('input', make_grid(batch.cpu(), nrow=8, normalize=True))
+
+                # predictions
+                outputs = outputs.gather(1, index).view(-1)
+                targets = targets.gather(1, index).view(-1)
+
+                total_outputs.append(outputs.cpu().detach().numpy())
+                total_targets.append(targets.cpu().detach().numpy())
+                
+        total_outputs = np.concatenate(total_outputs)
+        total_targets = np.concatenate(total_targets)
+            
+        for met in self.metric_ftns:
+            self.valid_metrics.update(
+                met.__name__, met(total_outputs, total_targets)
+            )
 
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
@@ -162,6 +204,51 @@ class Trainer(BaseTrainer):
             current = batch_idx
             total = self.len_epoch
         return base.format(current, total, 100.0 * current / total)
+    
+    # 배치 전처리
+    def process_batch(self, batch):
+
+        correct, question, test, tag, elapsed_question, elapsed_test, mask = batch
+
+        # change to float
+        mask = mask.type(torch.FloatTensor)
+        correct = correct.type(torch.FloatTensor)
+
+        #  interaction을 임시적으로 correct를 한칸 우측으로 이동한 것으로 사용
+        #    saint의 경우 decoder에 들어가는 input이다
+        interaction = correct + 1 # 패딩을 위해 correct값에 1을 더해준다.
+        interaction = interaction.roll(shifts=1, dims=1)
+        interaction[:, 0] = 0 # set padding index to the first sequence
+        interaction = (interaction * mask).to(torch.int32)
+
+        #  question_id, test_id, tag
+        question = ((question + 1) * mask).to(torch.int32)
+        test = ((test + 1) * mask).to(torch.int32)
+        tag = ((tag + 1) * mask).to(torch.int32)
+        elapsed_question = ((elapsed_question + 1) * mask).to(torch.int32)
+        elapsed_test = ((elapsed_test + 1) * mask).to(torch.int32)
+
+        # gather index
+        # 마지막 sequence만 사용하기 위한 index
+        gather_index = torch.tensor(np.count_nonzero(mask, axis=1))
+        gather_index = gather_index.view(-1, 1) - 1
+
+        # device memory로 이동
+        correct = correct.to(self.device)
+        question = question.to(self.device)
+        test = test.to(self.device)
+        tag = tag.to(self.device)
+        elapsed_question = elapsed_question.to(self.device)
+        elapsed_test = elapsed_test.to(self.device)
+        
+        mask = mask.to(self.device)
+        interaction = interaction.to(self.device)
+        gather_index = gather_index.to(self.device)
+
+        return (correct, question, test, tag,  
+                elapsed_question, elapsed_test,
+                mask, interaction, gather_index)
+
 
 
 ####################################################################################################
