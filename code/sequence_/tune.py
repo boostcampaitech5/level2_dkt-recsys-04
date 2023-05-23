@@ -36,6 +36,11 @@ def objective_function(space):
     """
     # space 가 dict으로 건네지기 때문에 easydict으로 바꿔준다
 
+
+    # 캐시 메모리 비우기 및 가비지 컬렉터 가동!
+    torch.cuda.empty_cache()
+    gc.collect()
+
     space = easydict.EasyDict(space)
     args = space["args"]
 
@@ -51,8 +56,20 @@ def objective_function(space):
 
     seed = space["seed"]
 
-    train_loader = space["train_loader"]
-    valid_loader = space["valid_loader"]
+    logger.info("Loading Data ...")
+    preprocess = Preprocess(args)
+    preprocess.load_train_data(file_name=os.path.join(args["data_dir"], "train_data.csv"))
+    train_data: np.ndarray = preprocess.get_train_data()
+    train_data, valid_data = preprocess.split_data(data=train_data)
+
+    ## augmentation
+    augmented_train_data = data_augmentation(train_data, args)
+    if len(augmented_train_data) != len(train_data):
+        print(f"Data Augmentation applied. Train data {len(train_data)} -> {len(augmented_train_data)}\n")
+
+    train_loader, valid_loader = get_loaders(args, augmented_train_data, valid_data)
+
+    logger.info("Building Model ...")
 
     model = get_model(args)
     optimizer = get_optimizer(model, args)
@@ -91,18 +108,14 @@ def objective_function(space):
 
     logger.info(f"Best Weight Confirmed : {best_auc_epoch}'th epoch & Best score : {best_auc}")
 
+
     return -1 * best_auc  # 목적 함수 값을 -auc로 설정 => 목적 함수 최소화 => auc 최대화
 
-
-def main(args, train_loader, valid_loader):
+def main(args):
     # seed 설정
     seed_everything(args.seed)
 
     args_origin = args.copy()
-
-    # 캐시 메모리 비우기 및 가비지 컬렉터 가동!
-    torch.cuda.empty_cache()
-    gc.collect()
 
     # 탐색 공간
     space = {
@@ -114,8 +127,6 @@ def main(args, train_loader, valid_loader):
         "lr": hp.uniform("lr", 0.00005, 0.001),
         "window": hp.choice("window", [True, False]),
         "stride": hp.choice("stride", [10, 20, 50, 100, 500]),
-        "train_loader": train_loader,
-        "valid_loader": valid_loader,
         "seed": args.seed,
         "args": args,
     }
@@ -152,19 +163,5 @@ def main(args, train_loader, valid_loader):
 
 if __name__ == "__main__":
     args = load_args()
+    main(args)
 
-    logger.info("Loading Data ...")
-    preprocess = Preprocess(args)
-    preprocess.load_train_data(file_name=os.path.join(args["data_dir"], "train_data.csv"))
-    train_data: np.ndarray = preprocess.get_train_data()
-    train_data, valid_data = preprocess.split_data(data=train_data)
-
-    ## augmentation
-    augmented_train_data = data_augmentation(train_data, args)
-    if len(augmented_train_data) != len(train_data):
-        print(f"Data Augmentation applied. Train data {len(train_data)} -> {len(augmented_train_data)}\n")
-
-    train_loader, valid_loader = get_loaders(args, augmented_train_data, valid_data)
-
-    logger.info("Building Model ...")
-    main(args, train_loader, valid_loader)

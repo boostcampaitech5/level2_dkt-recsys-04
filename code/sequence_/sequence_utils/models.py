@@ -166,8 +166,6 @@ class Bert(BaseModel):
         # Bert
         encoded_layers = self.encoder(inputs_embeds=X, attention_mask=mask)
 
-        # Bert
-        encoded_layers = self.encoder(inputs_embeds=X, attention_mask=mask)
         out = encoded_layers[0]
         out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
@@ -289,7 +287,7 @@ class Saint(BaseModel):
         )
 
         out = out.permute(1, 0, 2)
-        out = out.contiguous().view(batch_size, -1, self.hidden_dim)
+        out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
 
         preds = self.activation(out).view(batch_size, -1)
@@ -376,7 +374,6 @@ class LastQuery(BaseModel):
         out, hidden = self.lstm(out, hidden)
 
         ###################### DNN #####################
-        # out = out.contiguous().view(batch_size, -1, self.hidden_dim)
         out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
 
