@@ -81,13 +81,13 @@ class CONFIG:
         self.layer_norm = True
 
         # 훈련
-        self.n_epochs = 20
-        self.batch_size = 128
+        self.n_epochs = 10
+        self.batch_size = 256
         self.lr = 0.0001
         self.clip_grad = 10
 
         ### 중요 ###
-        self.model = "bert"
+        self.model = "lstm_attn"
         self.optimizer = "adam"
         self.scheduler = "plateau"
 ```
