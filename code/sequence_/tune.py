@@ -110,7 +110,7 @@ def main(args, train_loader, valid_loader):
         "n_layers": hp.choice("n_layers", [1, 2, 3]),
         "n_heads": hp.choice("n_heads", [1, 2, 4]),
         "dropout": hp.uniform("dropout", 0.1, 0.9),
-        "lr": hp.uniform("lr", 0.0001, 0.005),
+        "lr": hp.uniform("lr", 0.00005, 0.001),
         "window": hp.choice("window", [True, False]),
         "stride": hp.choice("stride", [10, 20, 50, 100, 500]),
         "train_loader": train_loader,
