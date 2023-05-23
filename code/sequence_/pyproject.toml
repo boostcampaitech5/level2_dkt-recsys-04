@@ -20,6 +20,7 @@ tensorboard = "^2.13.0"
 numpy = "1.23.2"
 black = "^23.3.0"
 easydict = "^1.10"
+hyperopt = "^0.2.7"
 
 [tool.poetry.group.dev.dependencies]
 pandas = "^2.0.1"
