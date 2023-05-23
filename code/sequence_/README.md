@@ -81,13 +81,14 @@ class CONFIG:
         self.layer_norm = True
 
         # 훈련
-        self.n_epochs = 20
-        self.batch_size = 128
+        self.n_epochs = 10
+        self.batch_size = 256
+
         self.lr = 0.0001
         self.clip_grad = 10
 
         ### 중요 ###
-        self.model = "bert"
+        self.model = "lstm_attn"
         self.optimizer = "adam"
         self.scheduler = "plateau"
 ```
@@ -104,4 +105,5 @@ class CONFIG:
     - `assessmentItemID` : 문제 번호
     - `KnowledgeTag` : 문제 고유 태그
     - `mask` : answerCode 를 max_seq_len 에 맞춰 패딩 변환
+
     - `elapsed_question` : 문제를 푸는데 걸린 시간

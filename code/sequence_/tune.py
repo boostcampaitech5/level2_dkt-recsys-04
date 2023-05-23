@@ -36,6 +36,7 @@ def objective_function(space):
     """
     # space 가 dict으로 건네지기 때문에 easydict으로 바꿔준다
 
+
     # 캐시 메모리 비우기 및 가비지 컬렉터 가동!
     torch.cuda.empty_cache()
     gc.collect()
@@ -69,6 +70,7 @@ def objective_function(space):
     train_loader, valid_loader = get_loaders(args, augmented_train_data, valid_data)
 
     logger.info("Building Model ...")
+
     model = get_model(args)
     optimizer = get_optimizer(model, args)
     scheduler = get_scheduler(optimizer, args)
@@ -106,8 +108,8 @@ def objective_function(space):
 
     logger.info(f"Best Weight Confirmed : {best_auc_epoch}'th epoch & Best score : {best_auc}")
 
-    return -1 * best_auc  # 목적 함수 값을 -auc로 설정 => 목적 함수 최소화 => auc 최대화
 
+    return -1 * best_auc  # 목적 함수 값을 -auc로 설정 => 목적 함수 최소화 => auc 최대화
 
 def main(args):
     # seed 설정
@@ -135,7 +137,7 @@ def main(args):
         fn=objective_function,  # 최적화 할 함수 (목적 함수)
         space=space,  # Hyperparameter 탐색 공간
         algo=tpe.suggest,  # 베이지안 최적화 적용 알고리즘 : Tree-structured Parzen Estimator (TPE)
-        max_evals=2,  # 입력 시도 횟수
+        max_evals=100,  # 입력 시도 횟수
         trials=trials,  # 시도한 입력 값 및 입력 결과 저장
         rstate=np.random.default_rng(seed=args.seed),  ## fmin()을 시도할 때마다 동일한 결과를 가질 수 있도록 설정하는 랜덤 시드
     )
@@ -161,5 +163,5 @@ def main(args):
 
 if __name__ == "__main__":
     args = load_args()
-
     main(args)
+
