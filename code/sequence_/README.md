@@ -8,6 +8,9 @@ poetry shell
 
 python train.py
 python inference.py --load_path ".../saved/{}/best_model.pt"
+
+# Hyperparameter Tuning
+python tune.py
 ```
 
 ### Directory Structure
