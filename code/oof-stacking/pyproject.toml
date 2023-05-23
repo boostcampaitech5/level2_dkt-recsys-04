@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "etc"
+version = "0.1.0"
+description = ""
+authors = ["sumin <ksum.jerry@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.1"
+torch = "1.13.1"
+scipy = "^1.9.0"
+scikit-learn = "^1.2.2"
+seaborn = "^0.12.2"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.23.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
