@@ -7,6 +7,7 @@ import numpy as np
 import random
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 from collections import OrderedDict
@@ -39,7 +40,6 @@ def main(args, gradient=False):
     logger.info("Set WandB ...")
     wandb.login()
     wandb.init(project="dkt", config=vars(args))
-
 
     ########################   Data Loader(load, preprocessing)
     logger.info("Preparing data ...")
@@ -82,11 +82,11 @@ def main(args, gradient=False):
     best_auc_epoch = -1
     best_acc = -1
     best_acc_epoch = -1
-    
+
     ########################   TRAIN
     logger.info(f"Training Started : n_epochs={args.n_epochs}")
     os.makedirs(name=args.model_dir, exist_ok=True)
-    shutil.copy(f'{os.getcwd()}/sequence_utils/config.py', args.model_dir)
+    shutil.copy(f"{os.getcwd()}/sequence_utils/config.py", args.model_dir)
 
     for epoch in range(args.n_epochs):
         epoch_report = {}
@@ -109,8 +109,14 @@ def main(args, gradient=False):
         epoch_report["valid_acc"] = valid_acc
         epoch_report["valid_time"] = valid_time
 
-        logger.info("Epoch: %s / %s, train_loss: %.4f, train_auc: %.4f, valid_auc: %.4f", 
-                    epoch+1, args.n_epochs, train_loss, train_auc, valid_auc)
+        logger.info(
+            "Epoch: %s / %s, train_loss: %.4f, train_auc: %.4f, valid_auc: %.4f",
+            epoch + 1,
+            args.n_epochs,
+            train_loss,
+            train_auc,
+            valid_auc,
+        )
         # save lr
         epoch_report["lr"] = optimizer.param_groups[0]["lr"]
 
@@ -128,9 +134,7 @@ def main(args, gradient=False):
         )
 
         if valid_auc > best_auc:
-            logger.info(
-                "Best model updated AUC from %.4f to %.4f at %s", best_auc, valid_auc, epoch
-            )
+            logger.info("Best model updated AUC from %.4f to %.4f at %s", best_auc, valid_auc, epoch)
             best_auc = valid_auc
             best_auc_epoch = epoch + 1
             torch.save(
@@ -165,6 +169,7 @@ def main(args, gradient=False):
         del args["gradient"]
 
     # return report
+
 
 if __name__ == "__main__":
     args = load_args()

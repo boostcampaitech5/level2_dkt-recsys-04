@@ -37,8 +37,8 @@ class Preprocess:
         return data_1, data_2
 
     def __save_labels(self, encoder, name):
-        os.makedirs(f'{self.args.save_dir}/asset', exist_ok=True)
-        le_path = os.path.join(f'{self.args.save_dir}/asset', name + "_classes.npy")
+        os.makedirs(f"{self.args.save_dir}/asset", exist_ok=True)
+        le_path = os.path.join(f"{self.args.save_dir}/asset", name + "_classes.npy")
         np.save(le_path, encoder.classes_)
 
     def __preprocessing(self, df):
@@ -48,11 +48,11 @@ class Preprocess:
             le = LabelEncoder()
             if self.is_train == True:
                 # For UNKNOWN class
-                a = df[col].unique().tolist() + ["unknown"]                
+                a = df[col].unique().tolist() + ["unknown"]
                 le.fit(a)
                 self.__save_labels(le, col)
             else:
-                label_path = os.path.join(f'{self.args.save_dir}/asset', col + "_classes.npy")
+                label_path = os.path.join(f"{self.args.save_dir}/asset", col + "_classes.npy")
                 le.classes_ = np.load(label_path)
                 df[col] = df[col].apply(lambda x: x if str(x) in le.classes_ else "unknown")
 
@@ -89,11 +89,11 @@ class Preprocess:
         df = pd.read_csv(csv_file_path)
         df = self.__feature_engineering(df)
         df = self.__preprocessing(df)
-        
+
         df = df.sort_values(by=["userID", "Timestamp"], axis=0)
         # columns = ["userID", "assessmentItemID", "testId", "answerCode", "KnowledgeTag", "elapsed_question", "elapsed_test"]
         columns = ["userID", "assessmentItemID", "testId", "answerCode", "KnowledgeTag", "elapsed_question"]
-        
+
         group = (
             df[columns]
             .groupby("userID")
@@ -180,7 +180,7 @@ def collate(batch):
     return tuple(col_list)
 
 
-def get_loaders(args, train, valid, inference:bool=False):
+def get_loaders(args, train, valid, inference: bool = False):
     pin_memory = False
     trainset = DKTDataset(train, args)
 
@@ -189,7 +189,7 @@ def get_loaders(args, train, valid, inference:bool=False):
             trainset, shuffle=False, batch_size=args.batch_size, pin_memory=pin_memory, collate_fn=collate
         )
         valid_loader = None
-    
+
     else:
         train_loader = torch.utils.data.DataLoader(
             trainset, shuffle=True, batch_size=args.batch_size, pin_memory=pin_memory, collate_fn=collate

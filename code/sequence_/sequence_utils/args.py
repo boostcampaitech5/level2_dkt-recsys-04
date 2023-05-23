@@ -6,8 +6,8 @@ from datetime import datetime
 
 configuration = CONFIG()
 
+
 def load_args(configuration=configuration):
-    
     config = {}
 
     # 설정

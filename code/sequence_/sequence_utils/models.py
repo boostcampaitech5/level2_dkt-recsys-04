@@ -10,12 +10,13 @@ try:
 except:
     from transformers.models.bert.modeling_bert import BertConfig, BertEncoder, BertModel
 
+
 class BaseModel(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
         self.device = self.args.device
-        
+
         # Embeddings
         # hd: Hidden dimension, intd: Intermediate hidden dimension
         hd, intd = self.args.hidden_dim, self.args.hidden_dim // 3
@@ -49,7 +50,7 @@ class BaseModel(nn.Module):
 
         embed_interaction = self.embedding_interaction(interaction)
         embed_interaction = nn.Dropout(self.args.dropout)(embed_interaction)
-        
+
         embed_test = self.embedding_test(test)
         embed_test = nn.Dropout(self.args.dropout)(embed_test)
 
@@ -79,48 +80,44 @@ class BaseModel(nn.Module):
 
         X = self.comb_proj(embed)
 
-        if (self.args.model == 'bert') or (self.args.model == 'lstm_attn'):
+        if (self.args.model == "bert") or (self.args.model == "lstm_attn"):
             return X, batch_size, mask
 
         return X, batch_size
-    
+
+
 class LSTM(BaseModel):
     def __init__(self, args):
         super().__init__(args)
-        self.lstm = nn.LSTM(self.args.hidden_dim,
-                            self.args.hidden_dim,
-                            self.args.n_layers,
-                            batch_first=True)
+        self.lstm = nn.LSTM(self.args.hidden_dim, self.args.hidden_dim, self.args.n_layers, batch_first=True)
 
     def forward(self, input):
         X, batch_size = super().forward(input=input)
-        
+
         hidden = self.init_hidden(batch_size)
         out, hidden = self.lstm(X, hidden)
-        
+
         out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
         out = self.fc(out)
         preds = self.activation(out).view(batch_size, -1)
 
         return preds
 
+
 class LSTMATNN(BaseModel):
     def __init__(self, args):
         super().__init__(args)
 
-        self.lstm = nn.LSTM(self.args.hidden_dim,
-                            self.args.hidden_dim,
-                            self.args.n_layers,
-                            batch_first=True)
-        
+        self.lstm = nn.LSTM(self.args.hidden_dim, self.args.hidden_dim, self.args.n_layers, batch_first=True)
+
         self.config = BertConfig(
             3,  # not used
-            hidden_size = self.args.hidden_dim,
-            num_hidden_layers = 1,
-            num_attention_heads = self.args.n_heads,
-            intermediate_size = self.args.hidden_dim,
-            hidden_dropout_prob = self.args.dropout,
-            attention_probs_dropout_prob = self.args.dropout,
+            hidden_size=self.args.hidden_dim,
+            num_hidden_layers=1,
+            num_attention_heads=self.args.n_heads,
+            intermediate_size=self.args.hidden_dim,
+            hidden_dropout_prob=self.args.dropout,
+            attention_probs_dropout_prob=self.args.dropout,
         )
         self.attn = BertEncoder(self.config)
 
@@ -129,7 +126,7 @@ class LSTMATNN(BaseModel):
 
         hidden = self.init_hidden(batch_size)
         out, hidden = self.lstm(X, hidden)
-        
+
         out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
 
         extended_attention_mask = mask.unsqueeze(1).unsqueeze(2)
@@ -168,7 +165,6 @@ class Bert(BaseModel):
 
         # Bert
         encoded_layers = self.encoder(inputs_embeds=X, attention_mask=mask)
-
 
         # Bert
         encoded_layers = self.encoder(inputs_embeds=X, attention_mask=mask)
@@ -317,7 +313,7 @@ class Feed_Forward_block(nn.Module):
 
 class LastQuery(BaseModel):
     def __init__(self, args):
-        super().__init__()        
+        super().__init__()
         # 기존 keetar님 솔루션에서는 Positional Embedding은 사용되지 않습니다
         # self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
 
@@ -326,7 +322,9 @@ class LastQuery(BaseModel):
         self.key = nn.Linear(in_features=self.args.hidden_dim, out_features=self.args.hidden_dim)
         self.value = nn.Linear(in_features=self.args.hidden_dim, out_features=self.args.hidden_dim)
 
-        self.attn = nn.MultiheadAttention(embed_dim=self.args.hidden_dim, num_heads=self.args.n_heads, dropout=self.args.dropout)
+        self.attn = nn.MultiheadAttention(
+            embed_dim=self.args.hidden_dim, num_heads=self.args.n_heads, dropout=self.args.dropout
+        )
         self.mask = None  # last query에서는 필요가 없지만 수정을 고려하여서 넣어둠
         self.ffn = Feed_Forward_block(self.args.hidden_dim)
 

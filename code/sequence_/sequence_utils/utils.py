@@ -17,11 +17,10 @@ class process:
         self.logger.info(f"{self.name} - Complete")
 
 
-
 def seed_everything(seed=42):
     # 랜덤 시드를 설정하여 매 코드를 실행할 때마다 동일한 결과를 얻게 합니다.
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -40,11 +39,7 @@ def get_logger(logger_conf: dict):
 
 logging_conf = {  # only used when 'user_wandb==False'
     "version": 1,
-    "formatters": {
-        "basic": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        }
-    },
+    "formatters": {"basic": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}},
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",

@@ -14,6 +14,7 @@ from sklearn.metrics import accuracy_score
 from sequence_utils.models import LSTM
 from sequence_utils.models import Bert
 from sequence_utils.models import Saint
+
 # from mission_utils.models import FixupEncoder
 from sequence_utils.models import LastQuery
 from sequence_utils.models import LSTMATNN
@@ -131,7 +132,7 @@ def process_batch(batch, args):
 
     elapsed_question = elapsed_question.to(args.device)
     # elapsed_test = elapsed_test.to(args.device)
-    
+
     correct = correct.to(args.device)
 
     mask = mask.to(args.device)
@@ -202,7 +203,7 @@ def train(train_loader, model, optimizer, scheduler, args, gradient=False):
 
         total_preds.append(preds)
         total_targets.append(targets)
-        total_losses.append(loss.cpu().detach().numpy())        
+        total_losses.append(loss.cpu().detach().numpy())
 
     total_preds = np.concatenate(total_preds)
     total_targets = np.concatenate(total_targets)

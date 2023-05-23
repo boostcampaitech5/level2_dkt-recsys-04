@@ -8,6 +8,7 @@ import random
 import pandas as pd
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 from collections import OrderedDict
@@ -56,14 +57,14 @@ def main(args, load_path, gradient=False):
     model = get_model(args)
     checkpoint = torch.load(load_path)
     model.load_state_dict(checkpoint["model"], strict=False)
-    
+
     model.eval()
-    
+
     total_preds = []
     ########################   TRAIN
     logger.info(f"Inference Started")
-    os.makedirs(name=os.path.join(args.model_dir, 'outputs'), exist_ok=True)
-    shutil.copy(f'{os.getcwd()}/sequence_utils/config.py', os.path.join(args.model_dir, 'outputs'))
+    os.makedirs(name=os.path.join(args.model_dir, "outputs"), exist_ok=True)
+    shutil.copy(f"{os.getcwd()}/sequence_utils/config.py", os.path.join(args.model_dir, "outputs"))
 
     total_preds = []
     with torch.no_grad():
@@ -75,26 +76,24 @@ def main(args, load_path, gradient=False):
             index = input[-1]
 
             preds = preds.gather(1, index).view(-1)
-            
+
             if args.device == "cuda":
                 preds = preds.to("cpu").detach().numpy()
             else:  # cpu
                 preds = preds.detach().numpy()
 
             total_preds.append(preds)
-        
+
         total_preds = np.concatenate(total_preds)
-    
-    write_path = os.path.join(os.path.join(args.model_dir, 'outputs'), "submission.csv")
-    pd.DataFrame({"prediction": total_preds}).to_csv(
-        path_or_buf=write_path, index_label="id"
-    )    
+
+    write_path = os.path.join(os.path.join(args.model_dir, "outputs"), "submission.csv")
+    pd.DataFrame({"prediction": total_preds}).to_csv(path_or_buf=write_path, index_label="id")
     logger.info(f"Successfully saved submission")
 
 
 if __name__ == "__main__":
     args = load_args()
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--load_path", type=str, help="model load path")
     parse = parser.parse_args()
