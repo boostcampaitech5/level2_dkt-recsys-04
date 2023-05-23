@@ -51,12 +51,8 @@ def train_parse_args() -> argparse.Namespace:
         "--use_cuda_if_available", default=True, type=bool, help="Use GPU"
     )
 
-    parser.add_argument(
-        "--data_dir", default="/opt/ml/input/data", type=str, help=""
-    )
-    parser.add_argument(
-        "--model_dir", default="./models/", type=str, help="model dir"
-    )
+    parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="")
+    parser.add_argument("--model_dir", default="./models/", type=str, help="model dir")
     parser.add_argument(
         "--output_dir", default="./outputs/", type=str, help="output dir"
     )
@@ -99,12 +95,8 @@ def cv_parse_args() -> argparse.Namespace:
         "--use_cuda_if_available", default=True, type=bool, help="Use GPU"
     )
 
-    parser.add_argument(
-        "--data_dir", default="/opt/ml/input/data", type=str, help=""
-    )
-    parser.add_argument(
-        "--model_dir", default="./models/", type=str, help="model dir"
-    )
+    parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="")
+    parser.add_argument("--model_dir", default="./models/", type=str, help="model dir")
     parser.add_argument(
         "--output_dir", default="./outputs/", type=str, help="output dir"
     )
@@ -115,9 +107,7 @@ def cv_parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--num_boost_round", default=100, type=int, help="num_boost_round"
     )
-    parser.add_argument(
-        "--use_kfold", default=True, type=bool, help="Use K-Fold CV"
-    )
+    parser.add_argument("--use_kfold", default=False, type=bool, help="Use K-Fold CV")
     parser.add_argument(
         "--use_skfold",
         default=False,
@@ -132,6 +122,12 @@ def cv_parse_args() -> argparse.Namespace:
         default=False,
         type=bool,
         help="Use Blocking Time Series CV",
+    )
+    parser.add_argument(
+        "--user_based_kfold",
+        default=True,
+        type=bool,
+        help="User User Based K-Fold Crossvalidation Strategy",
     )
     parser.add_argument(
         "--n_splits", default=5, type=int, help="n_splits in Cross-Validation"
@@ -165,15 +161,11 @@ def inference_parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--seed", default=42, type=int, help="seed")
 
-    parser.add_argument(
-        "--data_dir", default="/opt/ml/input/data", type=str, help=""
-    )
+    parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="")
     parser.add_argument(
         "--output_dir", default="./outputs/", type=str, help="output dir"
     )
-    parser.add_argument(
-        "--model_dir", default="./models/", type=str, help="model dir"
-    )
+    parser.add_argument("--model_dir", default="./models/", type=str, help="model dir")
     parser.add_argument(
         "--model_name", default="catboost.cbm", type=str, help="output dir"
     )

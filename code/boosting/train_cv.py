@@ -19,6 +19,7 @@ from boosting_util.datasets import (
     BlockingTimeSeriesSplit,
 )
 from boosting_util.args import cv_parse_args
+from boosting_util.custom_cv import UserBasedKFold
 
 # ignore warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -68,7 +69,13 @@ def main(args: argparse.Namespace):
 
     ######################## Cross-Validation
     selected_cv = sum(
-        [args.use_kfold, args.use_skfold, args.use_tscv, args.use_btscv]
+        [
+            args.use_kfold,
+            args.use_skfold,
+            args.use_tscv,
+            args.use_btscv,
+            args.user_based_kfold,
+        ]
     )
     if selected_cv != 1:
         print("Please select one CV option.")
@@ -86,6 +93,9 @@ def main(args: argparse.Namespace):
     elif args.use_btscv:
         CV = BlockingTimeSeriesSplit
         cv_info = "btscv"
+    elif args.user_based_kfold:
+        CV = UserBasedKFold
+        cv_info = "user_based_kfold"
 
     ########################   Data Loader
     print(f"--------------- {args.model} Data Loader   ---------------")
@@ -98,7 +108,7 @@ def main(args: argparse.Namespace):
     cv = CV(n_splits=args.n_splits)
     for i, (train_idx, valid_idx) in enumerate(cv.split(features)):
         print(
-            f"------------------------------ Fold {i + 1} ------------------------------"
+            f"------------------------------ {cv_info} {i + 1} ------------------------------"
         )
         X_train, X_valid = features.iloc[train_idx], features.iloc[valid_idx]
         y_train, y_valid = label.iloc[train_idx], label.iloc[valid_idx]
@@ -216,7 +226,7 @@ def main(args: argparse.Namespace):
     ######################## SAVE CONFIG
     print("\n--------------- Save Config   ---------------")
     print(
-        f"Inferencing CV : python inference.py --model={args.model} --model_name={setting.save_time}"
+        f"Inferencing CV : python inference_cv.py --model={args.model} --model_name={setting.save_time}"
     )
     setting.save_config(args, np.mean(cv_scores["AUC"]), cv_info)
 

@@ -48,9 +48,7 @@ def main(args: argparse.Namespace):
     predicts = []
     for idx, model_path in enumerate(models_path):
         ########################   LOAD Model
-        print(
-            f"--------------- {args.model} Load Model #{idx + 1}---------------"
-        )
+        print(f"--------------- {args.model} Load Model #{idx + 1}---------------")
         model = Model(
             args.model,
             args,
@@ -59,18 +57,16 @@ def main(args: argparse.Namespace):
         ).load_model()
 
         ########################   INFERENCE
-        print(
-            f"--------------- {args.model} Predict #{idx + 1} ---------------"
-        )
+        print(f"--------------- {args.model} Predict #{idx + 1} ---------------")
         predicts.append(model.pred(test_dataframe.drop(["answerCode"], axis=1)))
 
-    total_auc = calculate_average_score_from_extract_numbers_from_strings(
-        models_path
-    )
+    total_auc = calculate_average_score_from_extract_numbers_from_strings(models_path)
     total_preds = calculate_average_from_list(predicts=predicts)
 
     ######################## SAVE PREDICT
     print("\n--------------- Save Output Predict   ---------------")
+    setting.make_dir(args.output_dir)
+    setting.make_dir(os.path.join(args.output_dir, args.model))
     filename = os.path.join(
         args.output_dir,
         args.model,
