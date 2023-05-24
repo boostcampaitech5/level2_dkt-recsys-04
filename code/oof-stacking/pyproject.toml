@@ -12,6 +12,10 @@ torch = "1.13.1"
 scipy = "^1.9.0"
 scikit-learn = "^1.2.2"
 seaborn = "^0.12.2"
+easydict = "^1.10"
+tqdm = "^4.65.0"
+transformers = "^4.29.2"
+ipywidgets = "^8.0.6"
 
 
 [tool.poetry.group.dev.dependencies]
