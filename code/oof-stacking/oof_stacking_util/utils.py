@@ -1,6 +1,8 @@
 import os
+import time
 import random
 import numpy as np
+import pandas as pd
 
 import torch
 from torch import nn
@@ -37,7 +39,9 @@ def get_logger(logger_conf: dict):
 logging_conf = {  # only used when 'user_wandb==False'
     "version": 1,
     "formatters": {
-        "basic": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
+        "basic": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        }
     },
     "handlers": {
         "console": {
@@ -259,3 +263,88 @@ def validate(valid_loader, model, args):
     auc, acc = get_metric(total_targets, total_preds)
 
     return auc, acc, total_preds, total_targets
+
+
+def get_pred(test_loader, model, args):
+    model.eval()
+    total_preds = []
+
+    for step, batch in enumerate(test_loader):
+        input = process_batch(batch, args)
+        preds = model(input)
+        index = input[-1]
+
+        # predictions
+        preds = preds.gather(1, index).view(-1)
+        if args.device == "cuda":
+            preds = preds.to("cpu").detach().numpy()
+        else:
+            preds = preds.detach().numpy()
+
+        total_preds.append(preds)
+    total_preds = np.concatenate(total_preds)
+
+    return total_preds
+
+
+def make_dir(path: str) -> str:
+    """
+    [description]
+    경로가 존재하지 않을 경우 해당 경로를 생성하며, 존재할 경우 pass를 하는 함수입니다.
+
+    [arguments]
+    path : 경로
+
+    [return]
+    path : 경로
+    """
+    if not os.path.exists(path):
+        os.makedirs(path)
+    else:
+        pass
+    return path
+
+
+def save_predict(dir_path: str, filename: str, predict: pd.DataFrame) -> bool:
+    """_summary_
+    예측값을 파일에 작성하기
+    Args:
+        filename (str): FileName
+        predict (pd.DataFrame): Predic 결과
+
+    Returns:
+        bool: Save 결과
+    """
+    dir_path = make_dir(dir_path)
+    filename = os.path.join(dir_path, filename)
+    with open(filename, "w", encoding="utf8") as w:
+        print("writing prediction : {}".format(filename))
+        w.write("id,prediction\n")
+        for id, p in enumerate(predict):
+            w.write("{},{}\n".format(id, p))
+    return True
+
+
+def get_submit_filename(
+    auc_score: float,
+    format_name: str = "csv",
+) -> str:
+    """
+    [description]
+    submit file을 저장할 경로를 반환하는 함수입니다.
+
+    [arguments]
+    args : argparse로 입력받은 args 값으로 이를 통해 모델의 정보를 전달받습니다.
+
+    [return]
+    filename : submit file을 저장할 경로를 반환합니다.
+    이 때, 파일명은 submit/날짜_시간_모델명.csv 입니다.
+    """
+    now = time.localtime()
+    now_date = time.strftime("%Y%m%d", now)
+    now_hour = time.strftime("%X", now)
+    save_time = now_date + "_" + now_hour.replace(":", "")
+
+    filename = f"{save_time}_{auc_score:.5f}_oof_stacking.{format_name}"
+
+    return filename

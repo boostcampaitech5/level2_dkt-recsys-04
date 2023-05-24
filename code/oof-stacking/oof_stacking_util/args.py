@@ -15,7 +15,15 @@ def parse_args():
         type=str,
         help="",
     )
-    parser.add_argument("--data_dir", default="/opt/ml/input/data/", type=str, help="")
+    parser.add_argument(
+        "--test_data_dir",
+        default="/opt/ml/input/data/test_data.csv",
+        type=str,
+        help="",
+    )
+    parser.add_argument(
+        "--data_dir", default="/opt/ml/input/data/", type=str, help=""
+    )
 
     # 데이터
     parser.add_argument("--max_seq_len", default=300, type=int, help="")

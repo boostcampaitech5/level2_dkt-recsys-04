@@ -9,7 +9,14 @@ import torch
 
 from oof_stacking_util.trainer import Trainer, Stacking
 from oof_stacking_util.args import parse_args
-from oof_stacking_util.utils import set_seeds, get_logger, logging_conf, get_metric
+from oof_stacking_util.utils import (
+    set_seeds,
+    get_logger,
+    logging_conf,
+    get_metric,
+    save_predict,
+    get_submit_filename,
+)
 from oof_stacking_util.datasets import Preprocess
 
 from sklearn.linear_model import LinearRegression
@@ -29,7 +36,7 @@ def main(args: argparse.Namespace):
     ########################   Set device
     use_cuda: bool = torch.cuda.is_available() and args.use_cuda_if_available
     args.device = "cuda" if use_cuda else "cpu"
-    print(args.device)
+    # print(args.device)
 
     ########################   Data Loader(load, preprocessing)
     print("---------------  Data Loader   ---------------")
@@ -41,12 +48,15 @@ def main(args: argparse.Namespace):
     train_data = preprocess.get_train_data()
     train_data, valid_data = preprocess.split_data(train_data)
 
-    data = train_data
-    # 기타 모델 성능 개선 전용으로 사용할 데이터
-    size = int(len(train_data) * 0.8)
+    preprocess.load_train_data(args.test_data_dir)
+    test_data = preprocess.get_train_data()
 
-    temp_train_data = train_data[:size]
-    temp_valid_data = train_data[size:]
+    data = train_data
+    # # 기타 모델 성능 개선 전용으로 사용할 데이터
+    # size = int(len(train_data) * 0.8)
+
+    # temp_train_data = train_data[:size]
+    # temp_valid_data = train_data[size:]
 
     # 실제로 test data에는 target값이 들어가지만 임의의 target값이 배정된다
     temp_test_data = valid_data
@@ -116,6 +126,15 @@ def main(args: argparse.Namespace):
     print("--------------- Meta Model Performance   ---------------")
     stack_test_auc, stack_test_acc = get_metric(test_target, test_predict)
     print(f"test_auc: {stack_test_auc}, test_acc:{stack_test_acc}")
+
+    # Inference
+    print("--------------- Inference   ---------------")
+    # submission file 생성
+    submission_predict, S_test = stacking.test(
+        meta_model, args_list, models_list, test_data, inference=True
+    )
+    filename = get_submit_filename(stack_test_auc)
+    save_predict(args.output_dir, filename, submission_predict)
 
 
 if __name__ == "__main__":

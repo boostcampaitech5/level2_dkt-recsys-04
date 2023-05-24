@@ -30,26 +30,35 @@ def collate(batch):
     return tuple(col_list)
 
 
-def get_loaders(args, train, valid):
+def get_loaders(args, train, valid, inference: bool = False):
     pin_memory = False
-
     trainset = DKTDataset(train, args)
-    valset = DKTDataset(valid, args)
 
-    train_loader = torch.utils.data.DataLoader(
-        trainset,
-        shuffle=True,
-        batch_size=args.batch_size,
-        pin_memory=pin_memory,
-        collate_fn=collate,
-    )
+    if inference:
+        train_loader = torch.utils.data.DataLoader(
+            trainset,
+            shuffle=True,
+            batch_size=args.batch_size,
+            pin_memory=pin_memory,
+            collate_fn=collate,
+        )
+        valid_loader = None
+    else:
+        train_loader = torch.utils.data.DataLoader(
+            trainset,
+            shuffle=True,
+            batch_size=args.batch_size,
+            pin_memory=pin_memory,
+            collate_fn=collate,
+        )
 
-    valid_loader = torch.utils.data.DataLoader(
-        valset,
-        shuffle=False,
-        batch_size=args.batch_size,
-        pin_memory=pin_memory,
-        collate_fn=collate,
-    )
+        valset = DKTDataset(valid, args)
+        valid_loader = torch.utils.data.DataLoader(
+            valset,
+            shuffle=False,
+            batch_size=args.batch_size,
+            pin_memory=pin_memory,
+            collate_fn=collate,
+        )
 
     return train_loader, valid_loader

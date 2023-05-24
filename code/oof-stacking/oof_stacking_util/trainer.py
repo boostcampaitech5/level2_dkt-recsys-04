@@ -21,6 +21,7 @@ from oof_stacking_util.utils import (
     process_batch,
     compute_loss,
     validate,
+    get_pred,
 )
 
 from oof_stacking_util.datasets import DKTDataset
@@ -139,7 +140,14 @@ class Trainer:
 
         return preds
 
-    def test(self, args, model, test_data):
+    def inference(self, args, model, test):
+        test_loader, _ = get_loaders(args, test, None, inference=True)
+        preds = get_pred(test_loader, model, args)
+        return preds
+
+    def test(self, args, model, test_data, inference=False):
+        if inference:
+            return self.inference(args, model, test_data)
         return self.evaluate(args, model, test_data)
 
     def get_target(self, datas):
@@ -155,7 +163,7 @@ class Stacking:
     def __init__(self, trainer):
         self.trainer = trainer
 
-    def get_train_oof(self, args, data, fold_n=5, cv_info="ubfold"):
+    def get_train_oof(self, args, data, fold_n=5, cv_info="cv"):
         """
         Args:
             - args: 모델의 config
@@ -194,13 +202,13 @@ class Stacking:
 
         return oof, fold_models
 
-    def get_test_avg(self, args, models, test_data):
+    def get_test_avg(self, args, models, test_data, inference=False):
         predicts = np.zeros(test_data.shape[0])
 
         # 클래스 비율 고려하여 Fold별로 데이터 나눔
         for i, model in enumerate(models):
             print(f"Calculating test avg {i + 1}")
-            predict = self.trainer.test(args, model, test_data)
+            predict = self.trainer.test(args, model, test_data, inference)
 
             # fold별 prediction 값 모으기
             predicts += predict
@@ -210,7 +218,7 @@ class Stacking:
 
         return predict_avg
 
-    def train_oof_stacking(self, args_list, data, fold_n=5, cv_info="ubfold"):
+    def train_oof_stacking(self, args_list, data, fold_n=5, cv_info="cv"):
         S_train = None  # OOF 예측 결과들을 모아놓은 DataFrame
         models_list = []
         for i, args in enumerate(args_list):
@@ -231,11 +239,15 @@ class Stacking:
 
         return models_list, S_train
 
-    def test_avg_stacking(self, args_list, models_list, test_data):
+    def test_avg_stacking(
+        self, args_list, models_list, test_data, inference=False
+    ):
         S_test = None
         for i, models in enumerate(models_list):
             print(f"test average stacking model [ {i + 1} ]")
-            test_avg = self.get_test_avg(args_list[i], models, test_data)
+            test_avg = self.get_test_avg(
+                args_list[i], models, test_data, inference
+            )
             test_avg = test_avg.reshape(-1, 1)
 
             # avg stack!
@@ -264,8 +276,22 @@ class Stacking:
 
         return meta_model, models_list, S_train, target
 
-    def test(self, meta_model, args_list, models_list, test_data):
-        S_test = self.test_avg_stacking(args_list, models_list, test_data)
+    def test(
+        self, meta_model, args_list, models_list, test_data, inference=False
+    ):
+        S_test = self.test_avg_stacking(
+            args_list, models_list, test_data, inference=inference
+        )
+        # 디렉토리가 존재하지 않을 경우 생성
+        output_dir = "./stacked_output"  # train_oof_stacked 파일 저장 디렉토리
+        output_file = "S_test.csv"
+        output_path = os.path.join(output_dir, output_file)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # S_test을 DataFrame으로 변환 후 저장
+        S_test_df = pd.DataFrame(S_test)
+        S_test_df.to_csv(output_path, index=False)
+
         predict = meta_model.predict(S_test)
 
         return predict, S_test
