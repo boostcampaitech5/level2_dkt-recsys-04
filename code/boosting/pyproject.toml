@@ -14,6 +14,9 @@ scikit-learn = "^1.2.2"
 catboost = "^1.2"
 lightgbm = "^3.3.5"
 jupyter = "^1.0.0"
+torch = "1.13"
+hyperopt = "^0.2.7"
+xgboost = "^1.7.5"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.23.1"
