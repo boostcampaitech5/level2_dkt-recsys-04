@@ -1,88 +1,176 @@
-import argparse
-import collections
+import os
+
 import torch
+import gc
+
 import numpy as np
-import data_loader.data_loaders as module_data
+import random
 
-import model.loss as module_loss
-import model.metric as module_metric
-import model.model as module_arch
-from parse_config import ConfigParser
-from trainer import Trainer
-from utils import prepare_device
+import warnings
 
-from base import BaseDataLoader
+warnings.filterwarnings("ignore")
 
-# fix random seeds for reproducibility
-SEED = 123
-torch.manual_seed(SEED)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-np.random.seed(SEED)
+from collections import OrderedDict
+
+from sequence_utils.args import load_args
+from sequence_utils.datasets import Preprocess, data_augmentation, get_loaders
+from sequence_utils.trainer import get_model, get_optimizer, get_scheduler
+from sequence_utils.trainer import train, validate
+from sequence_utils.utils import seed_everything, get_logger, logging_conf
+
+import time
+import shutil
+import wandb
 
 
-def main(config):
-    logger = config.get_logger("train")
+args = load_args()
+logger = get_logger(logger_conf=logging_conf)
 
-    # setup data_loader instances
-    dataset = config.init_obj("data_loader", module_data)
-    
-    data_loader = BaseDataLoader(
-        dataset=dataset,
-        batch_size=config["data_loader"]["args"]["batch_size"],
-        shuffle=config["data_loader"]["args"]["shuffle"],
-        validation_split_size=config["data_loader"]["args"]["validation_split"],
-        num_workers=config["data_loader"]["args"]["num_workers"],
-    )
 
-    train_data_loader = data_loader.get_loader()
-    valid_data_loader = data_loader.split_validation()
+def main(args, gradient=False):
+    ########################   Set Random Seed
+    logger.info("Set Seed ...")
+    seed_everything(args.seed)
 
-    # build model architecture, then print to console
-    model = config.init_obj("arch", module_arch)
-    logger.info(model)
+    # 캐시 메모리 비우기 및 가비지 컬렉터 가동!
+    torch.cuda.empty_cache()
+    gc.collect()
 
-    # prepare for (multi-device) GPU training
-    device, device_ids = prepare_device(config["n_gpu"])
-    model = model.to(device)
-    if len(device_ids) > 1:
-        model = torch.nn.DataParallel(model, device_ids=device_ids)
+    ########################   Set WandB
+    logger.info("Set WandB ...")
+    wandb.login()
+    wandb.init(project="dkt", config=vars(args))
 
-    # get function handles of loss and metrics
-    criterion = getattr(module_loss, config["loss"])
-    metrics = [getattr(module_metric, met) for met in config["metrics"]]
+    ########################   Data Loader(load, preprocessing)
+    logger.info("Preparing data ...")
+    preprocess = Preprocess(args)
+    preprocess.load_train_data(os.path.join(args["data_dir"], "train_data.csv"))
 
-    # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = config.init_obj("optimizer", torch.optim, trainable_params)
-    lr_scheduler = config.init_obj("lr_scheduler", torch.optim.lr_scheduler, optimizer)
+    train_data = preprocess.get_train_data()
+    train_data, valid_data = preprocess.split_data(train_data)
 
-    trainer = Trainer(
-        model,
-        criterion,
-        metrics,
-        optimizer,
-        config=config,
-        device=device,
-        data_loader=train_data_loader,
-        valid_data_loader=valid_data_loader,
-        lr_scheduler=lr_scheduler,
-    )
+    ## augmentation
+    augmented_train_data = data_augmentation(train_data, args)
+    if len(augmented_train_data) != len(train_data):
+        print(f"Data Augmentation applied. Train data {len(train_data)} -> {len(augmented_train_data)}\n")
 
-    trainer.train()
+    train_loader, valid_loader = get_loaders(args, augmented_train_data, valid_data)
+
+    # only when using warmup scheduler
+    args.total_steps = int(len(train_loader.dataset) / args.batch_size) * (args.n_epochs)
+    args.warmup_steps = args.total_steps // 10
+
+    ########################   Model Build
+    logger.info("Building Model ...")
+    model = get_model(args)
+
+    optimizer = get_optimizer(model, args)
+    scheduler = get_scheduler(optimizer, args)
+
+    # 🌟 분석에 사용할 값 저장 🌟
+    report = OrderedDict()
+
+    # gradient step 분석에 사용할 변수
+    if gradient:
+        args.n_iteration = 0
+        args.gradient = OrderedDict()
+
+        # 모델의 gradient값을 가리키는 모델 명 저장
+        args.gradient["name"] = [name for name, _ in model.named_parameters()]
+
+    best_auc = -1
+    best_auc_epoch = -1
+    best_acc = -1
+    best_acc_epoch = -1
+
+    ########################   TRAIN
+    logger.info(f"Training Started : n_epochs={args.n_epochs}")
+    os.makedirs(name=args.model_dir, exist_ok=True)
+    shutil.copy(f"{os.getcwd()}/sequence_utils/config.py", args.model_dir)
+
+    for epoch in range(args.n_epochs):
+        epoch_report = {}
+
+        ### TRAIN
+        train_start_time = time.time()
+        train_loss, train_auc, train_acc = train(train_loader, model, optimizer, scheduler, args, gradient)
+        train_time = time.time() - train_start_time
+
+        epoch_report["train_auc"] = train_auc
+        epoch_report["train_acc"] = train_acc
+        epoch_report["train_time"] = train_time
+
+        ### VALID
+        valid_start_time = time.time()
+        valid_auc, valid_acc, preds, targets = validate(valid_loader, model, args)
+        valid_time = time.time() - valid_start_time
+
+        epoch_report["valid_auc"] = valid_auc
+        epoch_report["valid_acc"] = valid_acc
+        epoch_report["valid_time"] = valid_time
+
+        logger.info(
+            "Epoch: %s / %s, train_loss: %.4f, train_auc: %.4f, valid_auc: %.4f",
+            epoch + 1,
+            args.n_epochs,
+            train_loss,
+            train_auc,
+            valid_auc,
+        )
+        # save lr
+        epoch_report["lr"] = optimizer.param_groups[0]["lr"]
+
+        # 🌟 save it to report 🌟
+        report[f"{epoch + 1}"] = epoch_report
+
+        wandb.log(
+            dict(
+                train_loss_epoch=train_loss,
+                train_acc_epoch=train_acc,
+                train_auc_epoch=train_auc,
+                valid_acc_epoch=valid_acc,
+                valid_auc_epoch=valid_auc,
+            )
+        )
+
+        if valid_auc > best_auc:
+            logger.info("Best model updated AUC from %.4f to %.4f at %s", best_auc, valid_auc, epoch)
+            best_auc = valid_auc
+            best_auc_epoch = epoch + 1
+            torch.save(
+                obj={"model": model.state_dict(), "epoch": best_auc_epoch},
+                f=os.path.join(args.model_dir, f"updated_model_{valid_auc}.pt"),
+            )
+            torch.save(
+                obj={"model": model.state_dict(), "epoch": best_auc_epoch},
+                f=os.path.join(args.model_dir, f"best_model.pt"),
+            )
+
+        if valid_acc > best_acc:
+            best_acc = valid_acc
+            best_acc_epoch = epoch + 1
+
+        # scheduler
+        if args.scheduler == "plateau":
+            scheduler.step(best_auc)
+
+    logger.info(f"Best Weight Confirmed : {best_auc_epoch}'th epoch & Best score : {best_auc}")
+
+    # save best records
+    report["best_auc"] = best_auc
+    report["best_auc_epoch"] = best_auc_epoch
+    report["best_acc"] = best_acc
+    report["best_acc_epoch"] = best_acc_epoch
+
+    # save gradient informations
+    if gradient:
+        report["gradient"] = args.gradient
+        del args.gradient
+        del args["gradient"]
+
+    # return report
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument("-c", "--config", default=None, type=str, help="config file path (default: None)")
-    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
-    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable (default: all)")
-
-    # custom cli options to modify configuration from default values given in json file.
-    CustomArgs = collections.namedtuple("CustomArgs", "flags type target")
-    options = [
-        CustomArgs(["--lr", "--learning_rate"], type=float, target="optimizer;args;lr"),
-        CustomArgs(["--bs", "--batch_size"], type=int, target="data_loader;args;batch_size"),
-    ]
-    config = ConfigParser.from_args(args, options)
-    main(config)
+    args = load_args()
+    main(args)

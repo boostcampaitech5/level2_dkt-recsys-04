@@ -36,7 +36,6 @@ def objective_function(space):
     """
     # space 가 dict으로 건네지기 때문에 easydict으로 바꿔준다
 
-
     # 캐시 메모리 비우기 및 가비지 컬렉터 가동!
     torch.cuda.empty_cache()
     gc.collect()
@@ -110,6 +109,7 @@ def objective_function(space):
 
     return -1 * best_auc  # 목적 함수 값을 -auc로 설정 => 목적 함수 최소화 => auc 최대화
 
+
 def main(args):
     # seed 설정
     seed_everything(args.seed)
@@ -163,4 +163,3 @@ def main(args):
 if __name__ == "__main__":
     args = load_args()
     main(args)
-

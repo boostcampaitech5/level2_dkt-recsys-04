@@ -107,6 +107,7 @@ saved/
 datasets/
 outputs/
 asset/
+config.py
 
 # editor, os cache directory
 .vscode/
