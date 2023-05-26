@@ -8,7 +8,11 @@ import math
 try:
     from transformers.modeling_bert import BertConfig, BertEncoder, BertModel
 except:
-    from transformers.models.bert.modeling_bert import BertConfig, BertEncoder, BertModel
+    from transformers.models.bert.modeling_bert import (
+        BertConfig,
+        BertEncoder,
+        BertModel,
+    )
 
 
 class BaseModel(nn.Module):
@@ -24,7 +28,9 @@ class BaseModel(nn.Module):
         self.embedding_test = nn.Embedding(self.args.n_test + 1, intd)
         self.embedding_question = nn.Embedding(self.args.n_questions + 1, intd)
         self.embedding_tag = nn.Embedding(self.args.n_tag + 1, intd)
-        self.embedding_elapsed_question = nn.Embedding(self.args.n_elapsed_question + 1, intd)
+        self.embedding_elapsed_question = nn.Embedding(
+            self.args.n_elapsed_question + 1, intd
+        )
         # self.embedding_elapsed_test = nn.Embedding(self.args.n_elapsed_test + 1, intd)
 
         # Concatenated Embedding Projection
@@ -60,8 +66,12 @@ class BaseModel(nn.Module):
         embed_tag = self.embedding_tag(tag)
         embed_tag = nn.Dropout(self.args.dropout)(embed_tag)
 
-        embed_elapsed_question = self.embedding_elapsed_question(elapsed_question)
-        embed_elapsed_question = nn.Dropout(self.args.dropout)(embed_elapsed_question)
+        embed_elapsed_question = self.embedding_elapsed_question(
+            elapsed_question
+        )
+        embed_elapsed_question = nn.Dropout(self.args.dropout)(
+            embed_elapsed_question
+        )
 
         # embed_elapsed_test = self.embedding_elapsed_test(elapsed_test)
         # embed_elapsed_test = nn.Dropout(self.args.dropout)(embed_elapsed_test)
@@ -89,7 +99,12 @@ class BaseModel(nn.Module):
 class LSTM(BaseModel):
     def __init__(self, args):
         super().__init__(args)
-        self.lstm = nn.LSTM(self.args.hidden_dim, self.args.hidden_dim, self.args.n_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            self.args.hidden_dim,
+            self.args.hidden_dim,
+            self.args.n_layers,
+            batch_first=True,
+        )
 
     def forward(self, input):
         X, batch_size = super().forward(input=input)
@@ -108,7 +123,12 @@ class LSTMATNN(BaseModel):
     def __init__(self, args):
         super().__init__(args)
 
-        self.lstm = nn.LSTM(self.args.hidden_dim, self.args.hidden_dim, self.args.n_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            self.args.hidden_dim,
+            self.args.hidden_dim,
+            self.args.n_layers,
+            batch_first=True,
+        )
 
         self.config = BertConfig(
             3,  # not used
@@ -130,11 +150,15 @@ class LSTMATNN(BaseModel):
         out = out.contiguous().view(batch_size, -1, self.args.hidden_dim)
 
         extended_attention_mask = mask.unsqueeze(1).unsqueeze(2)
-        extended_attention_mask = extended_attention_mask.to(dtype=torch.float32)
+        extended_attention_mask = extended_attention_mask.to(
+            dtype=torch.float32
+        )
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         head_mask = [None] * self.args.n_layers
 
-        encoded_layers = self.attn(out, extended_attention_mask, head_mask=head_mask)
+        encoded_layers = self.attn(
+            out, extended_attention_mask, head_mask=head_mask
+        )
         sequence_output = encoded_layers[-1]
 
         out = self.fc(sequence_output)
@@ -182,7 +206,9 @@ class PositionalEncoding(nn.Module):
 
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+        )
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0).transpose(0, 1)
@@ -197,14 +223,22 @@ class Saint(BaseModel):
     def __init__(self, args):
         super().__init__(args)
         # encoder combination projection
-        self.enc_comb_proj = nn.Linear((self.args.hidden_dim // 3) * 4, self.args.hidden_dim)
+        self.enc_comb_proj = nn.Linear(
+            (self.args.hidden_dim // 3) * 4, self.args.hidden_dim
+        )
 
         # decoder combination projection
-        self.dec_comb_proj = nn.Linear((self.args.hidden_dim // 3) * 5, self.args.hidden_dim)
+        self.dec_comb_proj = nn.Linear(
+            (self.args.hidden_dim // 3) * 5, self.args.hidden_dim
+        )
 
         # Positional encoding
-        self.pos_encoder = PositionalEncoding(self.args.hidden_dim, self.args.dropout, self.args.max_seq_len)
-        self.pos_decoder = PositionalEncoding(self.args.hidden_dim, self.args.dropout, self.args.max_seq_len)
+        self.pos_encoder = PositionalEncoding(
+            self.args.hidden_dim, self.args.dropout, self.args.max_seq_len
+        )
+        self.pos_decoder = PositionalEncoding(
+            self.args.hidden_dim, self.args.dropout, self.args.max_seq_len
+        )
 
         self.transformer = nn.Transformer(
             d_model=self.args.hidden_dim,
@@ -221,7 +255,9 @@ class Saint(BaseModel):
         self.enc_dec_mask = None
 
     def get_mask(self, seq_len):
-        mask = torch.from_numpy(np.triu(np.ones((seq_len, seq_len)), k=1)).float()
+        mask = torch.from_numpy(
+            np.triu(np.ones((seq_len, seq_len)), k=1)
+        ).float()
 
         return mask.masked_fill(mask == 1, float("-inf"))
 
@@ -236,7 +272,9 @@ class Saint(BaseModel):
         embed_test = self.embedding_test(test)
         embed_question = self.embedding_question(question)
         embed_tag = self.embedding_tag(tag)
-        embed_elapsed_question = self.embedding_elapsed_question(elapsed_question)
+        embed_elapsed_question = self.embedding_elapsed_question(
+            elapsed_question
+        )
         # embed_elapsed_test = self.embedding_elapsed_test(elapsed_test)
 
         embed_enc = torch.cat(
@@ -256,10 +294,21 @@ class Saint(BaseModel):
         embed_test = self.embedding_test(test)
         embed_question = self.embedding_question(question)
         embed_tag = self.embedding_tag(tag)
-        embed_elapsed_question = self.embedding_elapsed_question(elapsed_question)
+        embed_elapsed_question = self.embedding_elapsed_question(
+            elapsed_question
+        )
         embed_interaction = self.embedding_interaction(interaction)
 
-        embed_dec = torch.cat([embed_test, embed_question, embed_tag, embed_elapsed_question, embed_interaction], 2)
+        embed_dec = torch.cat(
+            [
+                embed_test,
+                embed_question,
+                embed_tag,
+                embed_elapsed_question,
+                embed_interaction,
+            ],
+            2,
+        )
 
         embed_dec = self.dec_comb_proj(embed_dec)
 
@@ -283,7 +332,11 @@ class Saint(BaseModel):
         embed_dec = self.pos_decoder(embed_dec)
 
         out = self.transformer(
-            embed_enc, embed_dec, src_mask=self.enc_mask, tgt_mask=self.dec_mask, memory_mask=self.enc_dec_mask
+            embed_enc,
+            embed_dec,
+            src_mask=self.enc_mask,
+            tgt_mask=self.dec_mask,
+            memory_mask=self.enc_dec_mask,
         )
 
         out = out.permute(1, 0, 2)
@@ -316,12 +369,20 @@ class LastQuery(BaseModel):
         # self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
 
         # Encoder
-        self.query = nn.Linear(in_features=self.args.hidden_dim, out_features=self.args.hidden_dim)
-        self.key = nn.Linear(in_features=self.args.hidden_dim, out_features=self.args.hidden_dim)
-        self.value = nn.Linear(in_features=self.args.hidden_dim, out_features=self.args.hidden_dim)
+        self.query = nn.Linear(
+            in_features=self.args.hidden_dim, out_features=self.args.hidden_dim
+        )
+        self.key = nn.Linear(
+            in_features=self.args.hidden_dim, out_features=self.args.hidden_dim
+        )
+        self.value = nn.Linear(
+            in_features=self.args.hidden_dim, out_features=self.args.hidden_dim
+        )
 
         self.attn = nn.MultiheadAttention(
-            embed_dim=self.args.hidden_dim, num_heads=self.args.n_heads, dropout=self.args.dropout
+            embed_dim=self.args.hidden_dim,
+            num_heads=self.args.n_heads,
+            dropout=self.args.dropout,
         )
         self.mask = None  # last query에서는 필요가 없지만 수정을 고려하여서 넣어둠
         self.ffn = Feed_Forward_block(self.args.hidden_dim)
@@ -330,7 +391,12 @@ class LastQuery(BaseModel):
         self.ln2 = nn.LayerNorm(self.args.hidden_dim)
 
         # LSTM
-        self.lstm = nn.LSTM(self.args.hidden_dim, self.args.hidden_dim, self.args.n_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            self.args.hidden_dim,
+            self.args.hidden_dim,
+            self.args.n_layers,
+            batch_first=True,
+        )
 
     def get_pos(self, seq_len):
         # use sine positional embeddinds
@@ -381,14 +447,21 @@ class LastQuery(BaseModel):
 
         return preds
 
+
 class EncoderEmbedding(nn.Module):
     def __init__(self, args):
         self.args = args
 
         super(EncoderEmbedding, self).__init__()
-        self.embedding_question = nn.Embedding(self.args.n_questions + 1, self.args.hidden_dim)
-        self.embedding_tag = nn.Embedding(self.args.n_tag + 1, self.args.hidden_dim)
-        self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
+        self.embedding_question = nn.Embedding(
+            self.args.n_questions + 1, self.args.hidden_dim
+        )
+        self.embedding_tag = nn.Embedding(
+            self.args.n_tag + 1, self.args.hidden_dim
+        )
+        self.embedding_position = nn.Embedding(
+            self.args.max_seq_len, self.args.hidden_dim
+        )
 
     def forward(self, question, tag, elapsed_question):
         embed_question = self.embedding_question(question)
@@ -397,12 +470,15 @@ class EncoderEmbedding(nn.Module):
         embed_tag = self.embedding_tag(tag)
         embed_tag = nn.Dropout(self.args.dropout)(embed_tag)
 
-        seq = torch.arange(self.args.max_seq_len, device=self.args.device).unsqueeze(0)
+        seq = torch.arange(
+            self.args.max_seq_len, device=self.args.device
+        ).unsqueeze(0)
 
         embed_position = self.embedding_position(seq)
         embed_position = nn.Dropout(self.args.dropout)(embed_position)
 
         return embed_position + embed_tag + embed_question
+
 
 class DecoderEmbedding(nn.Module):
     def __init__(self, args):
@@ -410,57 +486,80 @@ class DecoderEmbedding(nn.Module):
 
         super(DecoderEmbedding, self).__init__()
         self.embedding_interaction = nn.Embedding(3, self.args.hidden_dim)
-        self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
+        self.embedding_position = nn.Embedding(
+            self.args.max_seq_len, self.args.hidden_dim
+        )
 
     def forward(self, interaction):
         embed_interaction = self.embedding_interaction(interaction)
         embed_interaction = nn.Dropout(self.args.dropout)(embed_interaction)
 
-        seq = torch.arange(self.args.max_seq_len, device=self.args.device).unsqueeze(0)
-        
+        seq = torch.arange(
+            self.args.max_seq_len, device=self.args.device
+        ).unsqueeze(0)
+
         embed_position = self.embedding_position(seq)
         embed_position = nn.Dropout(self.args.dropout)(embed_position)
 
         return embed_position + embed_interaction
 
+
 class StackedNMultiHeadAttention(nn.Module):
-    def __init__(self, args, n_multihead:int = 1):
+    def __init__(self, args, n_multihead: int = 1):
         # n_stacks : # of encoder(decoder), default = 4
         # n_heads : # of encoder(decoder) heads, default = 8
         # n_multihead : # of multihead, default = 1(encoder), 2(decoder)
-        
+
         self.args = args
-        
+
         super(StackedNMultiHeadAttention, self).__init__()
-        self.n_multihead = n_multihead 
+        self.n_multihead = n_multihead
         self.norm_layers = nn.LayerNorm(self.args.hidden_dim)
 
         # n_stacks has n_multiheads each
-        self.multihead_layers = nn.ModuleList(self.args.n_layers * [nn.ModuleList(
-                                                n_multihead * [nn.MultiheadAttention(
-                                                                embed_dim = self.args.hidden_dim,
-                                                                num_heads = self.args.n_heads,
-                                                                dropout = self.args.dropout), ]), ])
-        
-        self.ffn = nn.ModuleList(self.args.n_layers * [Feed_Forward_block(self.args.hidden_dim)])
-        self.mask = torch.triu(torch.ones(self.args.max_seq_len, self.args.max_seq_len),
-                               diagonal=1).to(dtype=torch.bool)
-        
-    def forward(self, input_q, input_k, input_v, encoder_output=None, break_layer=None):
+        self.multihead_layers = nn.ModuleList(
+            self.args.n_layers
+            * [
+                nn.ModuleList(
+                    n_multihead
+                    * [
+                        nn.MultiheadAttention(
+                            embed_dim=self.args.hidden_dim,
+                            num_heads=self.args.n_heads,
+                            dropout=self.args.dropout,
+                        ),
+                    ]
+                ),
+            ]
+        )
+
+        self.ffn = nn.ModuleList(
+            self.args.n_layers * [Feed_Forward_block(self.args.hidden_dim)]
+        )
+        self.mask = torch.triu(
+            torch.ones(self.args.max_seq_len, self.args.max_seq_len), diagonal=1
+        ).to(dtype=torch.bool)
+
+    def forward(
+        self, input_q, input_k, input_v, encoder_output=None, break_layer=None
+    ):
         for stack in range(self.args.n_layers):
             for multihead in range(self.n_multihead):
                 norm_q = self.norm_layers(input_q)
                 norm_k = self.norm_layers(input_k)
                 norm_v = self.norm_layers(input_v)
                 heads_output, attn_w = self.multihead_layers[stack][multihead](
-                    query = norm_q.permute(1, 0, 2),
-                    key = norm_k.permute(1, 0, 2),
-                    value = norm_v.permute(1, 0, 2),
-                    attn_mask = self.mask.to(self.args.device))
-                
+                    query=norm_q.permute(1, 0, 2),
+                    key=norm_k.permute(1, 0, 2),
+                    value=norm_v.permute(1, 0, 2),
+                    attn_mask=self.mask.to(self.args.device),
+                )
+
                 heads_output = heads_output.permute(1, 0, 2)
                 if encoder_output != None and multihead == break_layer:
-                    assert break_layer <= multihead, "break layer should be less than multihead layers and positive integer"
+                    assert (
+                        break_layer <= multihead
+                    ), "break layer should be less than multihead layers and positive integer"
                     input_k = input_v = encoder_output
                     input_q = input_q + heads_output
                 else:
@@ -474,43 +573,48 @@ class StackedNMultiHeadAttention(nn.Module):
         # after loops = input_q = input_k = input_v
         return ffn_output
 
+
 class SaintPlus(nn.Module):
     def __init__(self, args):
         self.args = args
 
         super(SaintPlus, self).__init__()
-        self.encoder_layer = StackedNMultiHeadAttention(args, n_multihead = 1)
-        self.decoder_layer = StackedNMultiHeadAttention(args, n_multihead = 2)
+        self.encoder_layer = StackedNMultiHeadAttention(args, n_multihead=1)
+        self.decoder_layer = StackedNMultiHeadAttention(args, n_multihead=2)
         self.encoder_embedding = EncoderEmbedding(args)
         self.decoder_embedding = DecoderEmbedding(args)
         self.elapsed_time = nn.Linear(1, self.args.hidden_dim)
-        
+
         self.fc = nn.Linear(self.args.hidden_dim, 1)
-        
+
         self.activation = nn.Sigmoid()
 
     def forward(self, input):
         test, question, tag, _, elapsed_question, mask, interaction, _ = input
         batch_size = interaction.size(0)
 
-        enc = self.encoder_embedding(question=question, tag=tag, elapsed_question=elapsed_question)
+        enc = self.encoder_embedding(
+            question=question, tag=tag, elapsed_question=elapsed_question
+        )
         dec = self.decoder_embedding(interaction=interaction)
-        
+
         elapsed_question = elapsed_question.unsqueeze(-1).float()
         elapsed_question = self.elapsed_time(elapsed_question)
 
         dec = dec + elapsed_question
 
         # encoder
-        encoder_output = self.encoder_layer(input_k=enc,
-                                            input_q=enc,
-                                            input_v=enc)
+        encoder_output = self.encoder_layer(
+            input_k=enc, input_q=enc, input_v=enc
+        )
         # decoder
-        decoder_output = self.decoder_layer(input_k=dec,
-                                            input_q=dec,
-                                            input_v=dec,
-                                            encoder_output=encoder_output,
-                                            break_layer=1)
+        decoder_output = self.decoder_layer(
+            input_k=dec,
+            input_q=dec,
+            input_v=dec,
+            encoder_output=encoder_output,
+            break_layer=1,
+        )
         # fully-connected layer
         out = self.fc(decoder_output)
         preds = self.activation(out).view(batch_size, -1)
