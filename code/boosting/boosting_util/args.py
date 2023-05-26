@@ -126,10 +126,7 @@ def cv_parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        choices=[
-            "CatBoost",
-            "LGBM",
-        ],
+        choices=["CatBoost", "LGBM", "XGBoost"],
         help="학습 및 예측할 모델을 선택할 수 있습니다.",
     )
     parser.add_argument("--seed", default=42, type=int, help="seed")
@@ -158,7 +155,7 @@ def cv_parse_args() -> argparse.Namespace:
         "--num_iterations", default=1000, type=int, help="num_iterations"
     )
     parser.add_argument(
-        "--num_boost_round", default=100, type=int, help="num_boost_round"
+        "--num_boost_round", default=1000, type=int, help="num_boost_round"
     )
     parser.add_argument(
         "--use_kfold", default=True, type=bool, help="Use K-Fold CV"
@@ -208,10 +205,7 @@ def inference_parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        choices=[
-            "CatBoost",
-            "LGBM",
-        ],
+        choices=["CatBoost", "LGBM", "XGBoost"],
         help="학습 및 예측할 모델을 선택할 수 있습니다.",
     )
     parser.add_argument("--seed", default=42, type=int, help="seed")

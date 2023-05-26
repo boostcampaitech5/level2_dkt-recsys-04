@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import lightgbm as lgb
 from catboost import CatBoostClassifier
+from xgboost import XGBClassifier
+
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
 
@@ -22,6 +24,8 @@ class Model:
             self.model = CatBoost(args, cat_features, model_path)
         elif self.model_name == "LGBM":
             self.model = LGBM(args, model_path)
+        elif self.model_name == "XGBoost":
+            self.model = XGBoost(args, model_path)
 
     def load_model(self):
         return self.model
@@ -66,9 +70,7 @@ class CatBoost:
             verbose_eval=100,
         )
         if eval_set:
-            self.best_validation_score = self.model.best_score_["validation"][
-                "AUC"
-            ]
+            self.best_validation_score = self.model.best_score_["validation"]["AUC"]
             self.feature_importance = self.model.feature_importances_
 
     def load_model(
@@ -266,3 +268,129 @@ class LGBM:
             np.ndarray: Model Predict
         """
         return self.model.predict(data)
+
+
+class XGBoost:
+    def __init__(
+        self,
+        args: argparse.Namespace,
+        model_path: str = None,
+    ) -> None:
+        self.model = self.load_model(args=args, model_path=model_path)
+
+    def train(
+        self,
+        train: pd.DataFrame,
+        y_train: pd.Series,
+        valid: pd.DataFrame = None,
+        y_valid: pd.Series = None,
+    ) -> None:
+        """_summary_
+        XGBoost Train 함수
+        Args:
+            train (pd.DataFrame): train dataset
+            y_train (pd.Series): train label
+            valid (pd.DataFrame): valid dataset
+            y_valid (pd.Series): valid label
+        """
+
+        eval_set = None
+        if valid is not None and y_valid is not None:
+            eval_set = [(valid, y_valid)]
+
+        self.model.fit(
+            train,
+            y_train,
+            eval_set=eval_set,
+        )
+
+        if eval_set:
+            self.best_validation_score = self.model.best_score
+            self.feature_importance = self.model.feature_importances_
+
+    def load_model(
+        self,
+        args: argparse.Namespace,
+        model_path: str,
+    ) -> XGBClassifier:
+        """_summary_
+        Train시에는 Config에 맞는 초기 모델을 반환하며
+        Inference시에는 모델의 가중치(xgb) 파일 경로를 읽어 기존 모델을 Load하여 반환한다.
+
+        Args:
+            args (argparse.Namespace): Config
+            model_path (str): Model을 Load하여 사용할 때 사용하는 변수로 기존 모델의 경로를 나타낸다.
+
+        Returns:
+            XGBClassifier: Model을 반환한다.
+        """
+        if model_path:
+            self.model = XGBClassifier()
+            self.model.load_model(model_path)
+        else:
+            if args.use_cuda_if_available:
+                self.model = XGBClassifier(
+                    objective="binary:logistic",
+                    num_boost_round=args.num_boost_round,
+                    learning_rate=args.lr,
+                    max_depth=args.depth,
+                    early_stopping_rounds=100,
+                    eval_metric="auc",
+                    random_state=args.seed,
+                    tree_method="gpu_hist",
+                    devices="0",
+                )
+            else:
+                self.model = XGBClassifier(
+                    objective="binary:logistic",
+                    num_boost_round=args.num_boost_round,
+                    learning_rate=args.lr,
+                    max_depth=args.depth,
+                    early_stopping_rounds=100,
+                    eval_metric="auc",
+                    random_state=args.seed,
+                )
+        return self.model
+
+    def save_model(
+        self,
+        filename: str,
+    ) -> bool:
+        """_summary_
+        XGBoost 모델 xgb(xgboost model binary 형태) 저장
+        Args:
+            filename (str): File 경로
+
+        Returns:
+            bool: Save 성공 여부 반영
+        """
+        try:
+            self.model.save_model(fname=filename)
+        except Exception:
+            return False
+        return True
+
+    def score(self, y: pd.Series, pred: np.ndarray) -> Tuple[float, float]:
+        """_summary_
+        AUC, ACC Score
+        Args:
+            y (pd.Series): 정답 Label
+            pred (np.ndarray): Inference 결과
+
+        Returns:
+            Tuple[float, float]: AUC, ACC Score
+        """
+        auc = roc_auc_score(y, pred)
+        acc = accuracy_score(y, np.where(pred >= 0.5, 1, 0))
+        return (auc, acc)
+
+    def pred(self, data: pd.Series) -> np.ndarray:
+        """_summary_
+        Inference
+        Args:
+            data (pd.Series): Inference Data
+
+        Returns:
+            np.ndarray: Model Predict
+        """
+        return self.model.predict_proba(data)[:, 1]
