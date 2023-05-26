@@ -97,21 +97,40 @@ def main(args: argparse.Namespace):
         CV = UserBasedKFold
         cv_info = "user_based_kfold"
 
+    ########################   Data Split
+    print(f"--------------- {args.model} Data Split   ---------------")
+    # 유저별 분리
+    train, test = custom_train_test_split(
+        dataframe, user_id_dir=args.user_id_dir
+    )
+    oof_train = train[train["userID"] != train["userID"].shift(-1)]
+    oof_test = test[test["userID"] != test["userID"].shift(-1)]
+
     ########################   Data Loader
     print(f"--------------- {args.model} Data Loader   ---------------")
     # X, y 값 분리
-    label, features = custom_label_split(dataframe)
+    label, features = custom_label_split(train)
+
+    oof_train_label, oof_train = custom_label_split(oof_train)
+    oof_test_label, oof_test = custom_label_split(oof_test)
 
     ####################### Cross Validation
     print(f"--------------- {args.model} Cross Validation   ---------------")
     cv_scores = {"AUC": [], "ACC": []}
     cv = CV(n_splits=args.n_splits)
+    oof = np.zeros(oof_train.shape[0])
+    print(f"Features Shape : {oof_train.shape[0]}")
     for i, (train_idx, valid_idx) in enumerate(cv.split(features)):
         print(
             f"------------------------------ {cv_info} {i + 1} ------------------------------"
         )
         X_train, X_valid = features.iloc[train_idx], features.iloc[valid_idx]
         y_train, y_valid = label.iloc[train_idx], label.iloc[valid_idx]
+
+        oof_X_valid = oof_train[oof_train["userID"].isin(X_valid["userID"])]
+        oof_Y_valid = oof_train_label[
+            oof_train["userID"].isin(X_valid["userID"])
+        ]
 
         ########################   TRAIN
         print(f"--------------- {args.model} Train   ---------------")
@@ -134,9 +153,10 @@ def main(args: argparse.Namespace):
 
         ########################   VALID
         print(f"--------------- {args.model} Valid   ---------------")
-        valid_preds = model.pred(X_valid)
-        auc, acc = model.score(y_valid, valid_preds)
+        valid_preds = model.pred(oof_X_valid)
+        oof[oof_train["userID"].isin(X_valid["userID"])] = valid_preds
 
+        auc, acc = model.score(oof_Y_valid, valid_preds)
         cv_scores["AUC"].append(auc)
         cv_scores["ACC"].append(acc)
         print(f"VALID AUC : {auc} ACC : {acc}\n")
@@ -159,11 +179,7 @@ def main(args: argparse.Namespace):
 
         ######################## SAVE MODEL
         print("\n--------------- Save Model   ---------------")
-        if args.model == "CatBoost":
-            format_name = "cbm"
-        else:
-            format_name = "bin"
-
+        format_name = "cbm" if args.model == "CatBoost" else "txt"
         model_path = setting.get_submit_filename(
             output_dir=args.model_dir,
             auc_score=auc,
@@ -173,36 +189,46 @@ def main(args: argparse.Namespace):
         print(f"saving model : {model_path}")
         model.save_model(filename=model_path)
 
-    ########################   PRINT THE CV SCORES
-    print("--------------- Summarize Cross-Validation Scores   ---------------")
-    print("CV Scores:")
-    for fold in range(args.n_splits):
-        print(
-            f"Fold {fold + 1} - {', '.join([f'{metric_name}: {scores[fold]:.4f}' for metric_name, scores in cv_scores.items()])}"
-        )
+    ######################## SAVE S_Train
+    oof = oof.reshape(-1, 1)
+    oof = pd.DataFrame(oof, columns=["prediction"])
+    oof.to_csv(
+        "/opt/ml/level2_dkt-recsys-04/code/boosting/oof_data/S_train.csv",
+        index=False,
+    )
 
-    print("\nMean CV Scores:")
-    for metric_name, scores in cv_scores.items():
-        print(f"{metric_name}: {np.mean(scores):.4f}")
+    ########################   Second VALID
+    print(f"--------------- {args.model} Valid   ---------------")
+    valid_preds = model.pred(oof_test)
 
-    print("\nStd CV Scores:")
-    for metric_name, scores in cv_scores.items():
-        print(f"{metric_name}: {np.std(scores):.4f}")
+    ######################## SAVE S_test
+    s_test = pd.DataFrame(valid_preds, columns=["prediction"])
+    s_test.to_csv(
+        "/opt/ml/level2_dkt-recsys-04/code/boosting/oof_data/S_test.csv",
+        index=False,
+    )
 
-    ########################   TRAIN
-    # print(f"--------------- {args.model} Train   ---------------")
-    # model = Model(args.model, args, cat_features).load_model()
-    # if args.model == "LGBM":
-    #     lgb_train = lgb.Dataset(
-    #         X_train,
-    #         y_train,
-    #         categorical_feature=cat_features,
-    #     )
-    #     model.train(lgb_train=lgb_train)
-    # else:
-    #     model.train(X_train, y_train)
+    ######################## Model Score
+    auc, acc = model.score(oof_test_label, valid_preds)
+    print(f"VALID AUC : {auc} ACC : {acc}\n")
+    print(f"BEST VALIDATION : {model.best_validation_score}\n")
+    print("Feature Importance : ")
+    feature_importance = sorted(
+        dict(
+            zip(
+                train.columns.values.tolist(),
+                model.feature_importance,
+            )
+        ).items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    pprint(
+        feature_importance,
+        width=50,
+    )
 
-    ########################   INFERENCE
+    # ########################   INFERENCE
     # print(f"--------------- {args.model} Predict   ---------------")
     # total_preds = model.pred(test_dataframe.drop(["answerCode"], axis=1))
 
@@ -210,7 +236,7 @@ def main(args: argparse.Namespace):
     # print("\n--------------- Save Output Predict   ---------------")
     # filename = setting.get_submit_filename(
     #     output_dir=args.output_dir,
-    #     auc_score=np.mean(cv_scores["AUC"]),
+    #     auc_score=model.best_validation_score,
     #     cv_info=cv_info,
     # )
     # setting.save_predict(filename=filename, predict=total_preds)
@@ -220,9 +246,9 @@ def main(args: argparse.Namespace):
     # format_name = "cbm" if args.model == "CatBoost" else "txt"
     # model_path = setting.get_submit_filename(
     #     output_dir=args.model_dir,
-    #     auc_score=np.mean(cv_scores["AUC"]),
-    #     cv_info=cv_info,
+    #     auc_score=model.best_validation_score,
     #     format_name=format_name,
+    #     cv_info=cv_info,
     # )
     # print(f"saving model : {model_path}")
     # model.save_model(filename=model_path)
@@ -232,7 +258,7 @@ def main(args: argparse.Namespace):
     print(
         f"Inferencing CV : python inference_cv.py --model={args.model} --model_name={setting.save_time}"
     )
-    setting.save_config(args, np.mean(cv_scores["AUC"]), cv_info)
+    setting.save_config(args, model.best_validation_score, cv_info=cv_info)
 
 
 if __name__ == "__main__":
