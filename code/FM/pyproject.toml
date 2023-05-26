@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "fm"
+version = "0.1.0"
+description = ""
+authors = ["zsmalla <malla7454@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "1.13.1"
+
+
+[tool.poetry.group.dev.dependencies]
+numpy = "^1.24.3"
+pandas = "^2.0.1"
+scikit-learn = "^1.2.2"
+tqdm = "^4.65.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
