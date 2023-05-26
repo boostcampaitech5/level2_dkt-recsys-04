@@ -34,9 +34,9 @@ def main(args: argparse.Namespace):
 
     ######################## Feature Engineering
     test_dataframe = feature_engineering(args.feats, test_dataframe)
-    test_dataframe = test_dataframe[
-        test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
-    ]
+    # test_dataframe = test_dataframe[
+    #     test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
+    # ]
     # Category Feature 선택
     cat_features, test_dataframe = preprocessing(test_dataframe)
 
@@ -48,7 +48,9 @@ def main(args: argparse.Namespace):
     predicts = []
     for idx, model_path in enumerate(models_path):
         ########################   LOAD Model
-        print(f"--------------- {args.model} Load Model #{idx + 1}---------------")
+        print(
+            f"--------------- {args.model} Load Model #{idx + 1}---------------"
+        )
         model = Model(
             args.model,
             args,
@@ -57,10 +59,14 @@ def main(args: argparse.Namespace):
         ).load_model()
 
         ########################   INFERENCE
-        print(f"--------------- {args.model} Predict #{idx + 1} ---------------")
+        print(
+            f"--------------- {args.model} Predict #{idx + 1} ---------------"
+        )
         predicts.append(model.pred(test_dataframe.drop(["answerCode"], axis=1)))
 
-    total_auc = calculate_average_score_from_extract_numbers_from_strings(models_path)
+    total_auc = calculate_average_score_from_extract_numbers_from_strings(
+        models_path
+    )
     total_preds = calculate_average_from_list(predicts=predicts)
 
     ######################## SAVE PREDICT
@@ -73,7 +79,12 @@ def main(args: argparse.Namespace):
         args.model_name + f"_{total_auc}_{args.model.lower()}_cv_inference.csv",
     )
 
-    setting.save_predict(filename=filename, predict=total_preds)
+    setting.save_predict(
+        filename=filename,
+        predict=total_preds[
+            test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
+        ],
+    )
 
 
 if __name__ == "__main__":

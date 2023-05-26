@@ -4,7 +4,7 @@ import torch
 
 from lightgcn_utils.args import parse_args
 from lightgcn_utils.datasets import prepare_dataset
-from lightgcn_utils import models
+from lightgcn_utils import models, trainer
 from lightgcn_utils.utils import get_logger, logging_conf, set_seeds
 
 
@@ -29,7 +29,7 @@ def main(args):
     ########################   LOAD Model
     print("--------------- LightGCN Load Model ---------------")
     logger.info("Loading Model ...")
-    weight: str = os.path.join(args.model_dir, args.model_name)
+    weight: str = os.path.join(args.model_dir, args.model_name)  # best_model.pt 파일 load
     model: torch.nn.Module = models.build(
         n_node=n_node,
         embedding_dim=args.hidden_dim,
@@ -42,7 +42,7 @@ def main(args):
     ########################   INFERENCE
     print("--------------- LightGCN Predict   ---------------")
     logger.info("Make Predictions & Save Submission ...")
-    models.inference(model=model, data=test_data, output_dir=args.output_dir)
+    trainer.inference(model=model, data=test_data, output_dir=args.output_dir)
 
 
 if __name__ == "__main__":

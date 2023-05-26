@@ -10,6 +10,18 @@
 ```
 
 ```bash
+    python train_cv.py --model=CatBoost 
+    
+    python inference_cv.py --model=CatBoost --model_name={Sample}
+```
+
+```bash
+    python train_oof.py --model=CatBoost --user_id_dir=/opt/ml/level2_dkt-recsys-04/code/oof-stacking/userid/0.7
+
+    python inference_cv.py --model=CatBoost --model_name=20230525_115217
+```
+
+```bash
     cd code/boosting & poetry install
     python train_cv.py --model=CatBoost # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --num_iterations=1000 --lr=0.1 --depth=6 --model_dir=./models/
     python inference_cv.py --model=CatBoost --model_name={save_time} # --seed=42 --data_dir=/opt/ml/input/data --output_dir=./outputs/ --model_dir=./models/
