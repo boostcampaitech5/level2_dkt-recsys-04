@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "etc"
+version = "0.1.0"
+description = ""
+authors = ["sumin <ksum.jerry@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.1"
+torch = "1.13.1"
+scipy = "^1.9.0"
+scikit-learn = "^1.2.2"
+seaborn = "^0.12.2"
+easydict = "^1.10"
+tqdm = "^4.65.0"
+transformers = "^4.29.2"
+ipywidgets = "^8.0.6"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.23.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
