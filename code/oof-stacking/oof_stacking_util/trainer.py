@@ -10,6 +10,7 @@ from tqdm import notebook
 
 from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import BaseCrossValidator
 
 from oof_stacking_util.utils import (
     data_augmentation,
@@ -20,11 +21,42 @@ from oof_stacking_util.utils import (
     process_batch,
     compute_loss,
     validate,
+    get_pred,
 )
 
 from oof_stacking_util.datasets import DKTDataset
 from oof_stacking_util.datloader import collate, get_loaders
 from oof_stacking_util.models import LSTM, Bert, Saint, LastQuery, FixupEncoder
+
+
+class UserBasedKFold(BaseCrossValidator):
+    def __init__(self, n_splits):
+        self.n_splits = n_splits
+
+    def get_n_splits(self, X, y, groups):
+        return self.n_splits
+
+    def _iter_test_indices(self, X, y=None, groups=None):
+        n_users = X.userID.nunique()
+        user_cnt = X.groupby(["userID"]).count()["assessmentItemID"].values
+        user_cnt_tup_list = np.array(
+            sorted(
+                [(user, cnt) for user, cnt in enumerate(user_cnt)],
+                key=lambda x: x[1],
+            )
+        )
+
+        for i in range(self.n_splits):
+            indices = (
+                np.arange(n_users, step=self.n_splits) + i
+            )  # sequence 수로 정렬된 리스트에서 가져올 index
+            indices = indices[indices <= n_users - 1]  # 범위를 초과하는 부분 예외 처리
+            userID_list = np.array(
+                [user for user, _ in user_cnt_tup_list[indices]]
+            )
+            fold_indices = X.loc[X["userID"].isin(userID_list)].index.values
+
+            yield fold_indices
 
 
 ############# Trainer
@@ -49,7 +81,9 @@ class Trainer:
                 f"Data Augmentation applied. Train data {len(train_data)} -> {len(augmented_train_data)}\n"
             )
 
-        train_loader, valid_loader = get_loaders(args, augmented_train_data, valid_data)
+        train_loader, valid_loader = get_loaders(
+            args, augmented_train_data, valid_data
+        )
 
         # only when using warmup scheduler
         args.total_steps = int(len(train_loader.dataset) / args.batch_size) * (
@@ -71,7 +105,9 @@ class Trainer:
             )
 
             ### VALID
-            valid_auc, valid_acc, preds, targets = validate(valid_loader, model, args)
+            valid_auc, valid_acc, preds, targets = validate(
+                valid_loader, model, args
+            )
 
             ### TODO: model save or early stopping
             if valid_auc > best_auc:
@@ -104,7 +140,14 @@ class Trainer:
 
         return preds
 
-    def test(self, args, model, test_data):
+    def inference(self, args, model, test):
+        test_loader, _ = get_loaders(args, test, None, inference=True)
+        preds = get_pred(test_loader, model, args)
+        return preds
+
+    def test(self, args, model, test_data, inference=False):
+        if inference:
+            return self.inference(args, model, test_data)
         return self.evaluate(args, model, test_data)
 
     def get_target(self, datas):
@@ -120,7 +163,7 @@ class Stacking:
     def __init__(self, trainer):
         self.trainer = trainer
 
-    def get_train_oof(self, args, data, fold_n=5, stratify=True):
+    def get_train_oof(self, args, data, fold_n=5, cv_info="cv"):
         """
         Args:
             - args: 모델의 config
@@ -132,14 +175,18 @@ class Stacking:
 
         fold_models = []
 
-        if stratify:
+        if cv_info == "skfold":
             kfold = StratifiedKFold(n_splits=fold_n)
+        elif cv_info == "ubfold":
+            kfold = UserBasedKFold(n_splits=fold_n)
         else:
             kfold = KFold(n_splits=fold_n)
 
         # 클래스 비율 고려하여 Fold별로 데이터 나눔
         target = self.trainer.get_target(data)
-        for i, (train_index, valid_index) in enumerate(kfold.split(data, target)):
+        for i, (train_index, valid_index) in enumerate(
+            kfold.split(data, target)
+        ):
             train_data, valid_data = data[train_index], data[valid_index]
 
             # 모델 생성 및 훈련
@@ -155,13 +202,13 @@ class Stacking:
 
         return oof, fold_models
 
-    def get_test_avg(self, args, models, test_data):
+    def get_test_avg(self, args, models, test_data, inference=False):
         predicts = np.zeros(test_data.shape[0])
 
         # 클래스 비율 고려하여 Fold별로 데이터 나눔
         for i, model in enumerate(models):
             print(f"Calculating test avg {i + 1}")
-            predict = self.trainer.test(args, model, test_data)
+            predict = self.trainer.test(args, model, test_data, inference)
 
             # fold별 prediction 값 모으기
             predicts += predict
@@ -171,13 +218,13 @@ class Stacking:
 
         return predict_avg
 
-    def train_oof_stacking(self, args_list, data, fold_n=5, stratify=True):
+    def train_oof_stacking(self, args_list, data, fold_n=5, cv_info="cv"):
         S_train = None  # OOF 예측 결과들을 모아놓은 DataFrame
         models_list = []
         for i, args in enumerate(args_list):
             print(f"training oof stacking model [ {i + 1}번: {args.model} ]")
             train_oof, models = self.get_train_oof(
-                args, data, fold_n=fold_n, stratify=stratify
+                args, data, fold_n=fold_n, cv_info=cv_info
             )
             train_oof = train_oof.reshape(-1, 1)
 
@@ -192,11 +239,15 @@ class Stacking:
 
         return models_list, S_train
 
-    def test_avg_stacking(self, args_list, models_list, test_data):
+    def test_avg_stacking(
+        self, args_list, models_list, test_data, inference=False
+    ):
         S_test = None
         for i, models in enumerate(models_list):
             print(f"test average stacking model [ {i + 1} ]")
-            test_avg = self.get_test_avg(args_list[i], models, test_data)
+            test_avg = self.get_test_avg(
+                args_list[i], models, test_data, inference
+            )
             test_avg = test_avg.reshape(-1, 1)
 
             # avg stack!
@@ -225,14 +276,30 @@ class Stacking:
 
         return meta_model, models_list, S_train, target
 
-    def test(self, meta_model, args_list, models_list, test_data):
-        S_test = self.test_avg_stacking(args_list, models_list, test_data)
+    def test(
+        self, meta_model, args_list, models_list, test_data, inference=False
+    ):
+        S_test = self.test_avg_stacking(
+            args_list, models_list, test_data, inference=inference
+        )
+        # 디렉토리가 존재하지 않을 경우 생성
+        output_dir = "./stacked_output"  # train_oof_stacked 파일 저장 디렉토리
+        output_file = "S_test.csv"
+        output_path = os.path.join(output_dir, output_file)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # S_test을 DataFrame으로 변환 후 저장
+        S_test_df = pd.DataFrame(S_test)
+        S_test_df.to_csv(output_path, index=False)
+
         predict = meta_model.predict(S_test)
 
         return predict, S_test
 
 
-def model_train(train_loader, model, optimizer, scheduler, args, gradient=False):
+def model_train(
+    train_loader, model, optimizer, scheduler, args, gradient=False
+):
     model.train()
 
     total_preds = []
