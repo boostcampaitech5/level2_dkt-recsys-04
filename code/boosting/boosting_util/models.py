@@ -180,7 +180,7 @@ class LGBM:
             valid (pd.DataFrame): valid dataset
             y_valid (pd.Series): valid label
         """
-        valid_sets = lgb_train
+        valid_sets = [lgb_train]
         if lgb_valid:
             valid_sets.append(lgb_valid)
         self.model = lgb.train(

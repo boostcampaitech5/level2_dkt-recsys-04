@@ -48,32 +48,32 @@ def main(args: argparse.Namespace):
 
     ######################## Feature Engineering
     dataframe = feature_engineering(args.feats, dataframe)
-    test_dataframe = feature_engineering(args.feats, test_dataframe)
-    # dataframe = pd.concat(
-    #     [
-    #         dataframe,
-    #         test_dataframe.loc[test_dataframe["answerCode"] != -1],
-    #     ]
-    # )
+
     # Category Feature 선택
     cat_features, dataframe = preprocessing(dataframe)
+    print(
+        f"After Train/Valid DataSet Feature Engineering Columns : {dataframe.columns.values.tolist()}"
+    )
+    test_dataframe = feature_engineering(args.feats, test_dataframe)
+    print(
+        f"After Test DataSet Feature Engineering Columns : {test_dataframe.columns.values.tolist()}"
+    )
     test_dataframe = test_dataframe[
         test_dataframe["userID"] != test_dataframe["userID"].shift(-1)
     ]
-    # print(
-    #     f"After Train/Valid DataSet Feature Engineering Columns : {dataframe.columns.values.tolist()}"
-    # )
-    # print(
-    #     f"After Test DataSet Feature Engineering Columns : {test_dataframe.columns.values.tolist()}"
-    # )
     # Category Feature 선택
     cat_features, test_dataframe = preprocessing(test_dataframe)
 
     ########################   Data Split
     print(f"--------------- {args.model} Data Split   ---------------")
     # 유저별 분리
-    train, valid = custom_train_test_split(
-        dataframe, user_id_dir=args.user_id_dir
+    train, valid = custom_train_test_split(dataframe)
+
+    train.to_csv(
+        "/opt/ml/level2_dkt-recsys-04/code/boosting/train_7.csv", sep=","
+    )
+    valid.to_csv(
+        "/opt/ml/level2_dkt-recsys-04/code/boosting/valid_3.csv", sep=","
     )
 
     ########################   Data Loader
@@ -157,7 +157,7 @@ def main(args: argparse.Namespace):
 
     ######################## SAVE CONFIG
     print("\n--------------- Save Config   ---------------")
-    setting.save_config(args, model.best_validation_score, cv_info="basic")
+    setting.save_config(args, model.best_validation_score)
 
 
 if __name__ == "__main__":

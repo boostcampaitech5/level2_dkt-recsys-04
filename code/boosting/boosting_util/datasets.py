@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime
 import numpy as np
@@ -58,37 +59,44 @@ def feature_engineering(feats: list, df: pd.DataFrame) -> pd.DataFrame:
 
 
 def custom_train_test_split(
-    df: pd.DataFrame, ratio: float = 0.8
+    df: pd.DataFrame, ratio: float = 0.7, user_id_dir: str = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """_summary_
 
     Args:
         - df (pd.DataFrame): Split 할 Train Set
-        - ratio (float, optional): train / valid 셋 중 train 셋 비율. Defaults to 0.8.
+        - ratio (float, optional): train / valid 셋 중 train 셋 비율. Defaults to 0.7.
 
     Returns:
         - Tuple[pd.DataFrame, pd.DataFrame]: Train , Valid Data Set
     """
-    users = list(
-        zip(df["userID"].value_counts().index, df["userID"].value_counts())
-    )
-    random.shuffle(users)
+    if user_id_dir:
+        train_user_id = pd.read_csv(
+            os.path.join(user_id_dir, "userid_train.csv")
+        )
+        train = df[df["userID"].isin(train_user_id["userID"])]
+        test = df[df["userID"].isin(train_user_id["userID"]) == False]
+    else:
+        users = list(
+            zip(df["userID"].value_counts().index, df["userID"].value_counts())
+        )
+        random.shuffle(users)
 
-    max_train_data_len = ratio * len(df)
-    sum_of_train_data = 0
-    user_ids = []
+        max_train_data_len = ratio * len(df)
+        sum_of_train_data = 0
+        user_ids = []
 
-    for user_id, count in users:
-        sum_of_train_data += count
-        if max_train_data_len < sum_of_train_data:
-            break
-        user_ids.append(user_id)
+        for user_id, count in users:
+            sum_of_train_data += count
+            if max_train_data_len < sum_of_train_data:
+                break
+            user_ids.append(user_id)
 
-    train = df[df["userID"].isin(user_ids)]
-    test = df[df["userID"].isin(user_ids) == False]
+        train = df[df["userID"].isin(user_ids)]
+        test = df[df["userID"].isin(user_ids) == False]
 
-    # test데이터셋은 각 유저의 마지막 interaction만 추출
-    test = test[test["userID"] != test["userID"].shift(-1)]
+        # test데이터셋은 각 유저의 마지막 interaction만 추출
+        test = test[test["userID"] != test["userID"].shift(-1)]
     return (train, test)
 
 

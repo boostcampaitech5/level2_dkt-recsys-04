@@ -83,7 +83,7 @@ class Setting:
         self,
         output_dir: str,
         auc_score: float,
-        cv_info: str,
+        cv_info: str = "basic",
         format_name: str = "csv",
     ) -> str:
         """
