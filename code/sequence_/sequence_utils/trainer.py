@@ -18,6 +18,7 @@ from sequence_utils.models import Saint
 # from mission_utils.models import FixupEncoder
 from sequence_utils.models import LastQuery
 from sequence_utils.models import LSTMATNN
+from sequence_utils.models import SaintPlus
 
 import numpy as np
 
@@ -70,6 +71,8 @@ def get_model(args):
         model = Saint(args)
     if args.model == "lstm_attn":
         model = LSTMATNN(args)
+    if args.model == "saint_plus":
+        model = SaintPlus(args)
     # if args.model == "tfixup":
     #     model = FixupEncoder(args)
 
