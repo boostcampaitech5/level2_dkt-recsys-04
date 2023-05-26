@@ -11,5 +11,5 @@
   "python.linting.pylintEnabled": false,
   "python.linting.lintOnSave": true,
   "python.linting.flake8Enabled": true,
-  "python.analysis.typeCheckingMode": "off"
+  "python.analysis.typeCheckingMode": "off",
 }

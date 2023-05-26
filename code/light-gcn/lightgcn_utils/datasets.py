@@ -10,18 +10,12 @@ from lightgcn_utils.utils import get_logger, logging_conf
 logger = get_logger(logging_conf)
 
 
-def prepare_dataset(
-    device: str, data_dir: str, verbose=True
-) -> Tuple[dict, dict, int]:
+def prepare_dataset(device: str, data_dir: str, verbose=True) -> Tuple[dict, dict, int]:
     data = load_data(data_dir=data_dir)
     train_data, test_data = split_data(data=data)
     id2index: dict = indexing_data(data=data)
-    train_data_proc = process_data(
-        data=train_data, id2index=id2index, device=device
-    )
-    test_data_proc = process_data(
-        data=test_data, id2index=id2index, device=device
-    )
+    train_data_proc = process_data(data=train_data, id2index=id2index, device=device)
+    test_data_proc = process_data(data=test_data, id2index=id2index, device=device)
 
     if verbose:
         print_data_stat(train_data, "Train")
@@ -55,9 +49,7 @@ print("--------------- LightGCN Data Split ---------------")
 
 def split_data(data: pd.DataFrame) -> Tuple[pd.DataFrame]:
     train_data = data[data.answerCode >= 0]  # loss는 answerCode가 -1이 아닌 값만
-    test_data = data[
-        data.answerCode == -1
-    ]  # answerCode가 -1인 항목은 최종 평가시 사용되는 항목
+    test_data = data[data.answerCode == -1]  # answerCode가 -1인 항목은 최종 평가시 사용되는 항목
     return train_data, test_data
 
 
@@ -67,7 +59,7 @@ def indexing_data(data: pd.DataFrame) -> dict:  # user/item ID를 node index와 
         sorted(list(set(data.userID))),
         sorted(list(set(data.assessmentItemID))),
     )
-    n_user, n_item = len(userid), len(itemid)
+    n_user = len(userid)
 
     userid2index = {v: i for i, v in enumerate(userid)}
     itemid2index = {v: i + n_user for i, v in enumerate(itemid)}
@@ -80,9 +72,7 @@ def process_data(
     data: pd.DataFrame, id2index: dict, device: str
 ) -> dict:  # user/item을 node로 바꾸어 edge와 label을 구함
     edge, label = [], []
-    for user, item, acode in zip(
-        data.userID, data.assessmentItemID, data.answerCode
-    ):
+    for user, item, acode in zip(data.userID, data.assessmentItemID, data.answerCode):
         uid, iid = id2index[user], id2index[item]
         edge.append([uid, iid])
         label.append(acode)  # 사용자가 해당 문항을 맞췄는지 여부를 label에 저장

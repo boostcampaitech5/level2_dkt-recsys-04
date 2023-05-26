@@ -7,7 +7,7 @@ import warnings
 
 from lightgcn_utils.args import parse_args
 from lightgcn_utils.datasets import prepare_dataset
-from lightgcn_utils import models
+from lightgcn_utils import models, trainer
 from lightgcn_utils.utils import get_logger, set_seeds, logging_conf
 
 warnings.filterwarnings("ignore")
@@ -50,13 +50,34 @@ def main(args: argparse.Namespace):
     ########################   TRAIN
     print("--------------- LightGCN Train   ---------------")
     logger.info("Start Training ...")
-    models.run(
+    trainer.run(
         model=model,
         train_data=train_data,
         n_epochs=args.n_epochs,
         learning_rate=args.lr,
         model_dir=args.model_dir,
     )
+
+    ########################   Get Embeddings of Nodes
+    print("--------------- LightGCN Embedding of Nodes   ---------------")
+    # 저장된 best 모델 load & model rebuild
+    logger.info("Building Best Model ...")
+    weight = "./models/best_model.pt"  # best 모델의 가중치가 저장된 파일 경로
+    model = models.build(
+        n_node=n_node,
+        weight=weight,
+        embedding_dim=args.hidden_dim,
+        num_layers=args.n_layers,
+        alpha=args.alpha,
+    )
+    model = model.to(device)
+
+    # GNN block을 통과한 embeddings of Nodes
+    logger.info("Get Embedding of Nodes ...")
+    print(train_data["edge"], train_data["edge"].shape)
+    embeddings = model.get_embedding(edge_index=train_data["edge"])
+    print(embeddings)
+    print(embeddings.shape)
 
 
 if __name__ == "__main__":
