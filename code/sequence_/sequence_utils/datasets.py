@@ -22,7 +22,7 @@ class Preprocess:
     def get_train_data(self):
         return self.train_data
 
-    def split_data(self, data, ratio=0.7, shuffle=True, seed=0):
+    def split_data(self, data, ratio=0.95, shuffle=True, seed=42):
         """
         split data into two parts with a given ratio.
         """
