@@ -50,9 +50,12 @@ class FeatureEnginnering:
         self.df = self.df.drop_duplicates(
             subset=["userID", "assessmentItemID"], keep="last"
         )
-        self.df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+        self.df["Timestamp"] = pd.to_datetime(df["Timestamp"], unit="s")
         self.feats = feats
         self.call_methods()
+
+        if "Unnamed: 0" in self.df.columns.tolist():
+            self.df = self.df.drop("Unnamed: 0", axis=1).reset_index(drop=True)
 
         # index col 제거
         for col in self.df.columns.tolist():
