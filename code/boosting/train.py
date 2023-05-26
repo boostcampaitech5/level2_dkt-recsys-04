@@ -141,6 +141,7 @@ def main(args: argparse.Namespace):
     filename = setting.get_submit_filename(
         output_dir=args.output_dir,
         auc_score=model.best_validation_score,
+        cv_info="basic",
     )
     setting.save_predict(filename=filename, predict=total_preds)
 
@@ -151,6 +152,7 @@ def main(args: argparse.Namespace):
         output_dir=args.model_dir,
         auc_score=model.best_validation_score,
         format_name=format_name,
+        cv_info="basic",
     )
     print(f"saving model : {model_path}")
     model.save_model(filename=model_path)

@@ -380,3 +380,139 @@ class LastQuery(BaseModel):
         preds = self.activation(out).view(batch_size, -1)
 
         return preds
+
+class EncoderEmbedding(nn.Module):
+    def __init__(self, args):
+        self.args = args
+
+        super(EncoderEmbedding, self).__init__()
+        self.embedding_question = nn.Embedding(self.args.n_questions + 1, self.args.hidden_dim)
+        self.embedding_tag = nn.Embedding(self.args.n_tag + 1, self.args.hidden_dim)
+        self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
+
+    def forward(self, question, tag, elapsed_question):
+        embed_question = self.embedding_question(question)
+        embed_question = nn.Dropout(self.args.dropout)(embed_question)
+
+        embed_tag = self.embedding_tag(tag)
+        embed_tag = nn.Dropout(self.args.dropout)(embed_tag)
+
+        seq = torch.arange(self.args.max_seq_len, device=self.args.device).unsqueeze(0)
+
+        embed_position = self.embedding_position(seq)
+        embed_position = nn.Dropout(self.args.dropout)(embed_position)
+
+        return embed_position + embed_tag + embed_question
+
+class DecoderEmbedding(nn.Module):
+    def __init__(self, args):
+        self.args = args
+
+        super(DecoderEmbedding, self).__init__()
+        self.embedding_interaction = nn.Embedding(3, self.args.hidden_dim)
+        self.embedding_position = nn.Embedding(self.args.max_seq_len, self.args.hidden_dim)
+
+    def forward(self, interaction):
+        embed_interaction = self.embedding_interaction(interaction)
+        embed_interaction = nn.Dropout(self.args.dropout)(embed_interaction)
+
+        seq = torch.arange(self.args.max_seq_len, device=self.args.device).unsqueeze(0)
+        
+        embed_position = self.embedding_position(seq)
+        embed_position = nn.Dropout(self.args.dropout)(embed_position)
+
+        return embed_position + embed_interaction
+
+class StackedNMultiHeadAttention(nn.Module):
+    def __init__(self, args, n_multihead:int = 1):
+        # n_stacks : # of encoder(decoder), default = 4
+        # n_heads : # of encoder(decoder) heads, default = 8
+        # n_multihead : # of multihead, default = 1(encoder), 2(decoder)
+        
+        self.args = args
+        
+        super(StackedNMultiHeadAttention, self).__init__()
+        self.n_multihead = n_multihead 
+        self.norm_layers = nn.LayerNorm(self.args.hidden_dim)
+
+        # n_stacks has n_multiheads each
+        self.multihead_layers = nn.ModuleList(self.args.n_layers * [nn.ModuleList(
+                                                n_multihead * [nn.MultiheadAttention(
+                                                                embed_dim = self.args.hidden_dim,
+                                                                num_heads = self.args.n_heads,
+                                                                dropout = self.args.dropout), ]), ])
+        
+        self.ffn = nn.ModuleList(self.args.n_layers * [Feed_Forward_block(self.args.hidden_dim)])
+        self.mask = torch.triu(torch.ones(self.args.max_seq_len, self.args.max_seq_len),
+                               diagonal=1).to(dtype=torch.bool)
+        
+    def forward(self, input_q, input_k, input_v, encoder_output=None, break_layer=None):
+        for stack in range(self.args.n_layers):
+            for multihead in range(self.n_multihead):
+                norm_q = self.norm_layers(input_q)
+                norm_k = self.norm_layers(input_k)
+                norm_v = self.norm_layers(input_v)
+                heads_output, attn_w = self.multihead_layers[stack][multihead](
+                    query = norm_q.permute(1, 0, 2),
+                    key = norm_k.permute(1, 0, 2),
+                    value = norm_v.permute(1, 0, 2),
+                    attn_mask = self.mask.to(self.args.device))
+                
+                heads_output = heads_output.permute(1, 0, 2)
+                if encoder_output != None and multihead == break_layer:
+                    assert break_layer <= multihead, "break layer should be less than multihead layers and positive integer"
+                    input_k = input_v = encoder_output
+                    input_q = input_q + heads_output
+                else:
+                    input_q = input_q + heads_output
+                    input_k = input_k + heads_output
+                    input_v = input_v + heads_output
+
+            last_norm = self.norm_layers(heads_output)
+            ffn_output = self.ffn[stack](last_norm)
+            ffn_output = ffn_output + heads_output
+        # after loops = input_q = input_k = input_v
+        return ffn_output
+
+class SaintPlus(nn.Module):
+    def __init__(self, args):
+        self.args = args
+
+        super(SaintPlus, self).__init__()
+        self.encoder_layer = StackedNMultiHeadAttention(args, n_multihead = 1)
+        self.decoder_layer = StackedNMultiHeadAttention(args, n_multihead = 2)
+        self.encoder_embedding = EncoderEmbedding(args)
+        self.decoder_embedding = DecoderEmbedding(args)
+        self.elapsed_time = nn.Linear(1, self.args.hidden_dim)
+        
+        self.fc = nn.Linear(self.args.hidden_dim, 1)
+        
+        self.activation = nn.Sigmoid()
+
+    def forward(self, input):
+        test, question, tag, _, elapsed_question, mask, interaction, _ = input
+        batch_size = interaction.size(0)
+
+        enc = self.encoder_embedding(question=question, tag=tag, elapsed_question=elapsed_question)
+        dec = self.decoder_embedding(interaction=interaction)
+        
+        elapsed_question = elapsed_question.unsqueeze(-1).float()
+        elapsed_question = self.elapsed_time(elapsed_question)
+
+        dec = dec + elapsed_question
+
+        # encoder
+        encoder_output = self.encoder_layer(input_k=enc,
+                                            input_q=enc,
+                                            input_v=enc)
+        # decoder
+        decoder_output = self.decoder_layer(input_k=dec,
+                                            input_q=dec,
+                                            input_v=dec,
+                                            encoder_output=encoder_output,
+                                            break_layer=1)
+        # fully-connected layer
+        out = self.fc(decoder_output)
+        preds = self.activation(out).view(batch_size, -1)
+
+        return preds

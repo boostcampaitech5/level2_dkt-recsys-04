@@ -85,7 +85,7 @@ def objective_function(space):
         args.gradient["name"] = [name for name, _ in model.named_parameters()]
 
     # seed 설정
-    seed_everything(seed)
+    # seed_everything(seed)
 
     best_auc = -1
     best_auc_epoch = -1
@@ -107,7 +107,6 @@ def objective_function(space):
             scheduler.step(best_auc)
 
     logger.info(f"Best Weight Confirmed : {best_auc_epoch}'th epoch & Best score : {best_auc}")
-
 
     return -1 * best_auc  # 목적 함수 값을 -auc로 설정 => 목적 함수 최소화 => auc 최대화
 
@@ -137,7 +136,7 @@ def main(args):
         fn=objective_function,  # 최적화 할 함수 (목적 함수)
         space=space,  # Hyperparameter 탐색 공간
         algo=tpe.suggest,  # 베이지안 최적화 적용 알고리즘 : Tree-structured Parzen Estimator (TPE)
-        max_evals=100,  # 입력 시도 횟수
+        max_evals=50,  # 입력 시도 횟수
         trials=trials,  # 시도한 입력 값 및 입력 결과 저장
         rstate=np.random.default_rng(seed=args.seed),  ## fmin()을 시도할 때마다 동일한 결과를 가질 수 있도록 설정하는 랜덤 시드
     )
