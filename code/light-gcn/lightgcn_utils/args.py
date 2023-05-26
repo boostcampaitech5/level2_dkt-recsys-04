@@ -9,9 +9,7 @@ def parse_args():
         "--use_cuda_if_available", default=True, type=bool, help="Use GPU"
     )
 
-    parser.add_argument(
-        "--data_dir", default="/opt/ml/input/data", type=str, help=""
-    )
+    parser.add_argument("--data_dir", default="/opt/ml/input/data", type=str, help="")
 
     parser.add_argument("--output_dir", default="./outputs/", type=str, help="")
 
@@ -19,12 +17,10 @@ def parse_args():
     parser.add_argument("--n_layers", default=1, type=int, help="")
     parser.add_argument("--alpha", default=None, type=float, help="")
 
-    parser.add_argument("--n_epochs", default=30, type=int, help="")
+    parser.add_argument("--n_epochs", default=300, type=int, help="")
     parser.add_argument("--lr", default=0.001, type=float, help="")
     parser.add_argument("--model_dir", default="./models/", type=str, help="")
-    parser.add_argument(
-        "--model_name", default="best_model.pt", type=str, help=""
-    )
+    parser.add_argument("--model_name", default="best_model.pt", type=str, help="")
 
     args = parser.parse_args()
 
