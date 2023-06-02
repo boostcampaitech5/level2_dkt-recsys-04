@@ -1,7 +1,5 @@
 # level2_dkt-recsys-04
 
-level2_dkt-recsys-04 created by GitHub Classroom
-
 ## 1. 프로젝트 개요
 
 ### 1-1. 프로젝트 주제
@@ -23,45 +21,48 @@ CUDA==11.0
 ### 1-3. 프로젝트 구조 및 사용 데이터셋의 구조도(연관도)
 
 ```bash
-:package:level2_dkt-recsys-04
- ┣ :open_file_folder:code
- ┃ ┣ :open_file_folder:FM
- ┃ ┃ ┣ :open_file_folder:src
- ┃ ┃ ┃ ┣ :open_file_folder:data
- ┃ ┃ ┃ ┃ ┣ :scroll:__init__.py
- ┃ ┃ ┃ ┃ ┣ :scroll:context_data.py
- ┃ ┃ ┃ ┃ ┗ :scroll:dataset.py
- ┃ ┃ ┃ ┣ :open_file_folder:train
- ┃ ┃ ┃ ┃ ┗ :scroll:trainer.py
- ┃ ┃ ┃ ┗ :scroll:utils.py
- ┃ ┃ ┗ :scroll:main.py
- ┃ ┣ :open_file_folder:MF
- ┃ ┃ ┣ :open_file_folder:MF_util
- ┃ ┃ ┣ :scroll:README.md
- ┃ ┃ ┗ :scroll:main.py
- ┃ ┣ :open_file_folder:boosting
- ┃ ┃ ┣ :open_file_folder:boosting_util
- ┃ ┃ ┣ :scroll:inference.py
- ┃ ┃ ┣ :scroll:inference_cv.py
- ┃ ┃ ┗ :scroll:train.py
- ┃ ┣ :open_file_folder:ensembles
- ┃ ┣ :open_file_folder:light-gcn
- ┃ ┃ ┣ :open_file_folder:lightgcn_utils
- ┃ ┃ ┣ :scroll:inference.py
- ┃ ┃ ┗ :scroll:train.py
- ┃ ┣ :open_file_folder:oof-stacking
- ┃ ┃ ┣ :open_file_folder:oof_stacking_util
- ┃ ┃ ┣ :scroll:args_list.json
- ┃ ┃ ┗ :scroll:main.py
- ┃ ┣ :open_file_folder:sequence
- ┃ ┃ ┣ :open_file_folder:sequence_utils
- ┃ ┃ ┣ :scroll:inference.py
- ┃ ┃ ┣ :scroll:train.py
- ┃ ┃ ┗ :scroll:tune.py
- ┃ ┣ :open_file_folder:utils
- ┃ ┃ ┗ :scroll:feature_selection.py
- ┃ ┗ :scroll:__init__.py
- ┗ :scroll:.gitignore
+level2_dkt-recsys-04
+├── README.md
+├── code
+│   ├── FM
+│   │   └── src
+│   │       ├── data
+│   │       │   ├── __init__.py
+│   │       │   ├── context_data.py
+│   │       │   └── dataset.py
+│   │       ├── train
+│   │       │   └── trainer.py
+│   │       └── utils.py
+│   ├── MF
+│   │   ├── MF_util
+│   │   ├── README.md
+│   │   └── main.py
+│   ├── __init__.py
+│   ├── boosting
+│   │   ├── README.md
+│   │   ├── boosting_util
+│   │   │   └── utils.py
+│   │   ├── inference.py
+│   │   └── train.py
+│   ├── ensembles
+│   ├── light-gcn
+│   │   ├── README.md
+│   │   ├── inference.py
+│   │   ├── lightgcn_utils
+│   │   └── train.py
+│   ├── oof-stacking
+│   │   ├── README.md
+│   │   ├── main.py
+│   │   └── oof_stacking_util
+│   ├── sequence
+│   │   ├── README.md
+│   │   ├── inference.py
+│   │   ├── pyproject.toml
+│   │   ├── sequence_utils
+│   │   ├── train.py
+│   │   └── tune.py
+│   └── utils
+└── gitignore
 ```
 
 ## 2. 프로젝트 팀 구성 및 역할
